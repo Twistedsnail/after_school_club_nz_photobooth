@@ -1,0 +1,17 @@
+#version 110
+
+varying vec2 tex_out;
+
+uniform int is_textured;
+uniform sampler2D tex_layer;
+uniform vec3 fill_colour;
+
+void main() {
+	if(is_textured > -1) {
+		vec4 tex_col = texture2D(tex_layer, tex_out);
+		gl_FragColor = vec4(tex_col.xyz, 1.f - tex_col.w);
+	}
+	else {
+		gl_FragColor = vec4(fill_colour, 1.f);
+	}
+}
