@@ -8,6 +8,7 @@
 #include <Magick++.h>
 #include <vector>
 
+#include "interface.h"
 static GLFWwindow *window;
 static GLuint preview_tex, blurred_tex, touch_text_tex, select_back_tex, select_vertical_tex, select_polaroid_tex;
 
@@ -30,7 +31,9 @@ static GLuint offset_unif;
 static GLuint scale_unif;
 
 static int selected = 0;
-static float timer_val = 0.f, timer_max = 2.f;
+
+static BounceAnimation bounce1 = BounceAnimation(3.f, 10.f, 0.f, 1.f), bounce2 = BounceAnimation(3.f, 20.f, 0.f, 5.f);
+static ScaleAnimation scale1 = ScaleAnimation(3.f, 0.05f, 0.f, 1.f);
 
 static void glfw_error(int code, const char *msg) {
 	printf("GLFW Error %i: %s", code, msg);
@@ -130,14 +133,14 @@ static void set_red() {
 
 static void set_blue() {
     selected = 2;
-    timer_val = 0.f;
-    timer_max = 3.f;
+    bounce1.reset();
+    bounce2.reset();
 }
 
 static void set_green() {
     selected = 1;
-    timer_val = 0.f;
-    timer_max = 3.f;
+    bounce1.reset();
+    bounce2.reset();
 }
 
 static void goto_layout_state() {
@@ -296,26 +299,11 @@ void open_window() {
 
 void update_window() {
     static double old_t = glfwGetTime(), t = glfwGetTime();
-    static unsigned counter = 0;
     static double dT = 0;
 
     t = glfwGetTime();
-    double temp_dt = t - old_t;
-    dT += temp_dt;
-    counter ++;
+    dT = t - old_t;
     old_t = t;
-
-    timer_val += temp_dt;
-    if(timer_val > timer_max) {
-        timer_val -= timer_max;
-    }
-
-    if(counter == 9) {
-        printf("Framerate: %f\n", 10.0/dT);
-        counter = 0;
-        dT = 0;
-        printf("Sel: %i\n", selected);
-    }
 
     glfwPollEvents();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -324,11 +312,11 @@ void update_window() {
         ui_panel_t *panel = &ui_panels[state][i];
 
         if(state == 0 && i == 1) {
-            float amount = 0.05f * sin(2.f*3.1415926535f * timer_val/timer_max);
-            int xAmount = (int)(amount * (float)panel->rect_geom.width);
-            int yAmount = (int)(amount * (float)panel->rect_geom.height);
+            scale1.progress_timer(dT);
+            
+            int xAmount = (int)scale1.modify_feature((float)panel->rect_geom.width);
+            int yAmount = (int)scale1.modify_feature((float)panel->rect_geom.height);
 
-            printf("amount: %u %u\n", xAmount, yAmount);
             panel->rect_geom.y -= yAmount / 2;
             panel->rect_geom.height += yAmount;
             panel->rect_geom.x -= xAmount / 2;
@@ -343,16 +331,18 @@ void update_window() {
         }
         else if(state == 1) {
             if(selected == 1 && i == 1) {
-                int amount = 10 * abs(sin(2.f*3.1415926535f * 3.f * timer_val/timer_max));
-                panel->rect_geom.y -= amount;
+                bounce1.progress_timer(dT);
+                int original_y = panel->rect_geom.y;
+                panel->rect_geom.y = (int)bounce1.modify_feature((float)panel->rect_geom.y);
                 render_panel(panel);
-                panel->rect_geom.y += amount;
+                panel->rect_geom.y = original_y;
             }
             else if(selected == 2 && i == 2) {
-                int amount = 20 * sin(2.f*3.1415926535f * 2.f * timer_val/timer_max);
-                panel->rect_geom.y -= amount;
+                bounce2.progress_timer(dT);
+                int original_y = panel->rect_geom.y;
+                panel->rect_geom.y = (int)bounce2.modify_feature((float)panel->rect_geom.y);
                 render_panel(panel);
-                panel->rect_geom.y += amount;
+                panel->rect_geom.y = original_y;
             }
             else render_panel(panel);
         }
