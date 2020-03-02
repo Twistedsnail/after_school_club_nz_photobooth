@@ -1,5 +1,8 @@
 #include "gl_base.h"
 
+GLuint program, edge_buffer, face_buffer, pos_atr, uv_atr, tex_lay;
+GLuint is_textured_unif, fill_colour_unif, offset_unif, scale_unif;
+
 static void check_compile_result(GLuint target, GLuint shader, GLint result) {
     if(result != -1) return;
 
@@ -79,4 +82,46 @@ void create_texture(GLuint *tex_ptr) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+}
+
+static void get_locations() {
+    pos_atr = glGetAttribLocation(program, "position");
+    uv_atr = glGetAttribLocation(program, "tex_coord");
+
+    is_textured_unif = glGetUniformLocation(program, "is_textured");
+    fill_colour_unif = glGetUniformLocation(program, "fill_colour");
+    offset_unif = glGetUniformLocation(program, "offset");
+    scale_unif = glGetUniformLocation(program, "scale");
+    tex_lay = glGetUniformLocation(program, "tex_layer");
+}
+
+static void load_panel_buffers() {
+    GLfloat triangle[12] = {0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f,0.f, 0.f, 0.f,0.f, 0.f};
+    GLfloat uvs[8] = {0.f, 1.f, 1.f, 1.f, 1.f, 0.f, 0.f, 0.f};
+    GLushort faces[6] = {0, 1, 2, 0, 2, 3};
+    GLushort edges[5] = {0, 1, 2, 3, 0};
+
+	(void)create_array_buffer(triangle, pos_atr, sizeof(triangle), 3);
+	(void)create_array_buffer(uvs, uv_atr, sizeof(uvs), 2);
+
+	glGenBuffers(1, &edge_buffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edge_buffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(edges), edges, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &face_buffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, face_buffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faces), faces, GL_STATIC_DRAW);
+}
+
+void init_gl() {
+    program = setup_gl_program("../data/vshader", "../data/fshader");
+    glUseProgram(program);
+
+    glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    get_locations();
+
+    load_panel_buffers();
+    glUniform1i(tex_lay, 0);
 }

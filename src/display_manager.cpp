@@ -1,14 +1,15 @@
 #include "display_manager.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <cmath>
-
-#include "gl_base.h"
 #include <GLFW/glfw3.h>
 #include <Magick++.h>
 #include <vector>
 
+#include "gl_base.h"
 #include "interface.h"
+
 static GLFWwindow *window;
 static GLuint preview_tex, blurred_tex, touch_text_tex, select_back_tex, select_vertical_tex, select_polaroid_tex;
 
@@ -17,18 +18,6 @@ static unsigned state = 0;
 static Magick::Geometry window_dimensions;
 
 static std::vector<ui_panel_t> ui_panels[2];
-
-static GLfloat triangle[12] = {0.f, 1.f, 0.f, 1.f, 1.f, 0.f, 1.f,0.f, 0.f, 0.f,0.f, 0.f};
-static GLfloat uvs[8] = {0.f, 1.f, 1.f, 1.f, 1.f, 0.f, 0.f, 0.f};
-static GLushort faces[6] = {0, 1, 2, 0, 2, 3};
-static GLushort edges[5] = {0, 1, 2, 3, 0};
-
-static GLuint edge_buffer, face_buffer;
-
-static GLuint is_textured_unif;
-static GLuint fill_colour_unif;
-static GLuint offset_unif;
-static GLuint scale_unif;
 
 static int selected = 0;
 
@@ -83,22 +72,16 @@ static void resize_graphics(GLFWwindow *window, int width, int height) {
     if(width > 1280) x_off = (width - 1280)/2;
     if(height > 800) y_off = (height - 800)/2;
 
-static bool triggered = false;
-bool show_full = false;
     window_dimensions.width(1280);
     window_dimensions.height(800);
     window_dimensions.xOff(x_off);
     window_dimensions.yOff(y_off);
 
-static float rand_float() {
-    return (float)(rand() % 1000) / 1000.f;
     glViewport(x_off, y_off, 1280, 800);
 }
 
 static void click_callback(GLFWwindow *window, int button, int action, int modifiers) {
     if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-        //if(show_full == false) triggered = true;
-        //else show_full = false;
         double x_pos, y_pos;
         glfwGetCursorPos(window, &x_pos, &y_pos);
         x_pos -= (double)window_dimensions.xOff();
@@ -123,14 +106,6 @@ static void click_callback(GLFWwindow *window, int button, int action, int modif
             glClearColor(0.f, 0.f, 0.f, 1.f);
         }
     }
-}
-
-bool get_triggered() {
-    if(triggered) {
-        triggered = false;
-        return true;
-    }
-    return false;
 }
 
 static void set_red() {
@@ -167,14 +142,31 @@ static void render_panel(ui_panel_t *panel) {
     glUniform2fv(scale_unif, 1, &scale[0]);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, face_buffer);
-    glDrawElements(GL_TRIANGLES, sizeof(faces) / sizeof(faces[0]), GL_UNSIGNED_SHORT, NULL);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, NULL);
 
     if(panel->stroke > 0.f) {
         glLineWidth(panel->stroke);
         glUniform3fv(fill_colour_unif, 1, &panel->stroke_colour[0]);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edge_buffer);
-        glDrawElements(GL_LINE_STRIP, (sizeof(edges) / sizeof(edges[0])), GL_UNSIGNED_SHORT, NULL);
+        glDrawElements(GL_LINE_STRIP, 5, GL_UNSIGNED_SHORT, NULL);
     }
+}
+
+static void load_panel_textures() {
+    create_texture(&preview_tex);
+    load_blurred_texture("../data/prev.jpg");
+
+    create_texture(&touch_text_tex);
+    load_texture("../data/touch_text.png");
+
+    create_texture(&select_back_tex);
+    load_texture("../data/select_background.png");
+
+    create_texture(&select_vertical_tex);
+    load_texture("../data/select_vertical.png");
+
+    create_texture(&select_polaroid_tex);
+    load_texture("../data/select_polaroid.png");
 }
 
 void open_window() {
@@ -198,51 +190,10 @@ void open_window() {
 	glfwSetFramebufferSizeCallback(window, resize_graphics);
 	glfwSetMouseButtonCallback(window, click_callback);
 
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-
-	GLuint program = setup_gl_program("../data/vshader", "../data/fshader");
-    glUseProgram(program);
-
-    glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    GLuint pos_atr = glGetAttribLocation(program, "position");
-    GLuint uv_atr = glGetAttribLocation(program, "tex_coord");
-
-	(void)create_array_buffer(triangle, pos_atr, sizeof(triangle), 3);
-	(void)create_array_buffer(uvs, uv_atr, sizeof(uvs), 2);
-
-	glGenBuffers(1, &edge_buffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edge_buffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(edges), edges, GL_STATIC_DRAW);
-
-	glGenBuffers(1, &face_buffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, face_buffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faces), faces, GL_STATIC_DRAW);
-
-    is_textured_unif = glGetUniformLocation(program, "is_textured");
-    fill_colour_unif = glGetUniformLocation(program, "fill_colour");
-    offset_unif = glGetUniformLocation(program, "offset");
-    scale_unif = glGetUniformLocation(program, "scale");
-
-    GLuint tex_lay = glGetUniformLocation(program, "tex_layer");
-    glUniform1i(tex_lay, 0);
-
-    create_texture(&preview_tex);
-    load_texture("../data/preview.jpg");
 	//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-    create_texture(&touch_text_tex);
-    load_texture("../data/touch_text.png");
-
-    create_texture(&select_back_tex);
-    load_texture("../data/select_background.png");
-
-    create_texture(&select_vertical_tex);
-    load_texture("../data/select_vertical.png");
-
-    create_texture(&select_polaroid_tex);
-    load_texture("../data/select_polaroid.png");
+	init_gl();
+    load_panel_textures();
 
     // Idle background
     ui_panel_t touch_panel1 = {

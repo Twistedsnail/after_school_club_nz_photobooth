@@ -17,7 +17,7 @@ int main() {
 
 	//curl_test();
 
-    connect_to_camera();
+    //connect_to_camera();
     open_window();
 
     /*Magick::Image layout_template = init_layout(&polaroid_layout_b);
