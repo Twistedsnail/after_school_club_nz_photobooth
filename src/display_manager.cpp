@@ -154,6 +154,9 @@ static void render_panel(ui_panel_t *panel) {
 
 static void load_panel_textures() {
     create_texture(&preview_tex);
+    load_texture("../data/prev.jpg");
+
+    create_texture(&blurred_tex);
     load_blurred_texture("../data/prev.jpg");
 
     create_texture(&touch_text_tex);
@@ -201,7 +204,7 @@ void open_window() {
         .stroke = 0.f,
         .fill_colour = {0.f, 0.f, 0.f},
         .stroke_colour = {0.f, 0.f, 0.f},
-        .texture = preview_tex,
+        .texture = blurred_tex,
         .rect_geom = make_rect(0, -26, 1280, 853),
         .click_fn = goto_layout_state
     };

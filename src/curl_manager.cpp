@@ -41,8 +41,8 @@ static void add_img_attachment(std::string name, std::string path) {
 static size_t payload_source(void *ptr, size_t sze, size_t nmemb, void *userp) {
     if(sze == 0 || nmemb == 0 || sze * nmemb < 1) return 0;
 
-    unsigned *bytes_read = (unsigned *)userp;
-    unsigned read_size = sze*nmemb;
+    size_t *bytes_read = (size_t *)userp;
+    size_t read_size = sze*nmemb;
 
     if(test_payload.size() == *bytes_read) return 0;
     else if(test_payload.size() < *bytes_read + read_size) {
@@ -54,7 +54,7 @@ static size_t payload_source(void *ptr, size_t sze, size_t nmemb, void *userp) {
     if(data) {
         *bytes_read += read_size;
         size_t len = strlen(data);
-        printf("Sending payload bytes %i of %i\n", *bytes_read, test_payload.size());
+        printf("Sending payload bytes %lu of %lu\n", *bytes_read, test_payload.size());
         memcpy(ptr, data, len);
 
         return len;
@@ -71,7 +71,7 @@ void curl_test() {
     CURL *curl;
     CURLcode res = CURLE_OK;
     struct curl_slist *recipients = NULL;
-    unsigned bytes_read = 0;
+    size_t bytes_read = 0;
 
     curl = curl_easy_init();
     if(curl) {

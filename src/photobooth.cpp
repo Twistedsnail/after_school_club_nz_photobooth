@@ -7,9 +7,8 @@
 #include <time.h>
 #include <cstdlib>
 
-static unsigned capture_number = 0;
-static char *preview_blob_data = nullptr;
-static unsigned long preview_blob_size = 0;
+//static char *preview_blob_data = nullptr;
+//static unsigned long preview_blob_size = 0;
 
 int main() {
     Magick::InitializeMagick("");
