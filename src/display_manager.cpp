@@ -79,16 +79,20 @@ void load_full_texture(std::string path) {
 }
 
 static void resize_graphics(GLFWwindow *window, int width, int height) {
-    window_dimensions.width((unsigned)width);
-    window_dimensions.height((unsigned)height);
-    glViewport(0, 0, width, height);
-}
+    int x_off = 0, y_off = 0;
+    if(width > 1280) x_off = (width - 1280)/2;
+    if(height > 800) y_off = (height - 800)/2;
 
 static bool triggered = false;
 bool show_full = false;
+    window_dimensions.width(1280);
+    window_dimensions.height(800);
+    window_dimensions.xOff(x_off);
+    window_dimensions.yOff(y_off);
 
 static float rand_float() {
     return (float)(rand() % 1000) / 1000.f;
+    glViewport(x_off, y_off, 1280, 800);
 }
 
 static void click_callback(GLFWwindow *window, int button, int action, int modifiers) {
@@ -97,6 +101,8 @@ static void click_callback(GLFWwindow *window, int button, int action, int modif
         //else show_full = false;
         double x_pos, y_pos;
         glfwGetCursorPos(window, &x_pos, &y_pos);
+        x_pos -= (double)window_dimensions.xOff();
+        y_pos -= (double)window_dimensions.yOff();
 
         bool clicked = false;
 
@@ -175,7 +181,10 @@ void open_window() {
 	glfwInit();
 	glfwSetErrorCallback(glfw_error);
 
-	window = glfwCreateWindow(400, 300, "Test", glfwGetPrimaryMonitor(), NULL);
+	GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+	const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+
+	window = glfwCreateWindow(mode->width, mode->height, "Test", monitor, NULL);
 	glfwMakeContextCurrent(window);
 
 	glewInit();
@@ -221,6 +230,7 @@ void open_window() {
 
     create_texture(&preview_tex);
     load_texture("../data/preview.jpg");
+	//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
     create_texture(&touch_text_tex);
     load_texture("../data/touch_text.png");
