@@ -17,7 +17,7 @@ static unsigned state = 0;
 
 static Magick::Geometry window_dimensions;
 
-static std::vector<ui_panel_t> ui_panels[2];
+static std::vector<Texture_Panel> ui_panels[2];
 
 static int selected = 0;
 
@@ -80,7 +80,7 @@ static void resize_graphics(GLFWwindow *window, int width, int height) {
     glViewport(x_off, y_off, 1280, 800);
 }
 
-static void click_callback(GLFWwindow *window, int button, int action, int modifiers) {
+/*static void click_callback(GLFWwindow *window, int button, int action, int modifiers) {
     if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
         double x_pos, y_pos;
         glfwGetCursorPos(window, &x_pos, &y_pos);
@@ -106,7 +106,7 @@ static void click_callback(GLFWwindow *window, int button, int action, int modif
             glClearColor(0.f, 0.f, 0.f, 1.f);
         }
     }
-}
+}*/
 
 static void set_red() {
     selected = 0;
@@ -128,7 +128,7 @@ static void goto_layout_state() {
     state = 1;
 }
 
-static void render_panel(ui_panel_t *panel) {
+/*static void render_panel(ui_panel_t *panel) {
     glUniform1i(is_textured_unif, panel->textured ? 1 : -1);
     glBindTexture(GL_TEXTURE_2D, panel->texture);
 
@@ -150,7 +150,7 @@ static void render_panel(ui_panel_t *panel) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edge_buffer);
         glDrawElements(GL_LINE_STRIP, 5, GL_UNSIGNED_SHORT, NULL);
     }
-}
+}*/
 
 static void load_panel_textures() {
     create_texture(&preview_tex);
@@ -199,7 +199,9 @@ void open_window() {
     load_panel_textures();
 
     // Idle background
-    ui_panel_t touch_panel1 = {
+    Texture_Panel touch_panel1 = Texture_Panel(blurred_tex, 0.f, -26.f, 1280.f, 853.f);
+    Texture_Panel touch_panel2 = Texture_Panel(touch_text_tex, window_dimensions.width() / 2 - 510, window_dimensions.height() / 2 - 71, 1021.f, 142.f);
+    /*ui_panel_t touch_panel1 = {
         .textured = true,
         .stroke = 0.f,
         .fill_colour = {0.f, 0.f, 0.f},
@@ -251,14 +253,14 @@ void open_window() {
         .texture = select_polaroid_tex,
         .rect_geom = make_rect(684, 182, 399, 461),
         .click_fn = set_blue
-    };
+    };*/
 
     ui_panels[0].push_back(touch_panel1);
     ui_panels[0].push_back(touch_panel2);
 
-    ui_panels[1].push_back(test_panel1);
+    /*ui_panels[1].push_back(test_panel1);
     ui_panels[1].push_back(test_panel2);
-    ui_panels[1].push_back(test_panel3);
+    ui_panels[1].push_back(test_panel3);*/
 }
 
 void update_window() {
