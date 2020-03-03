@@ -48,50 +48,47 @@ UI_Panel::UI_Panel(float panel_x, float panel_y, float panel_width, float panel_
     height = panel_height;
 }
 
-void UI_Panel::click_handler(float click_x, float click_y) {
-    return;
+bool UI_Panel::click_handler(float click_x, float click_y) {
+    return false;
 }
 
 void UI_Panel::render() {
     return;
 }
 
-float UI_Panel::getX() {
-    return x;
-}
-
-float UI_Panel::getY() {
-    return x;
-}
-
-float UI_Panel::getWidth() {
-    return x;
-}
-
-float UI_Panel::getHeight() {
-    return x;
-}
-
 Texture_Panel::Texture_Panel() {
     texture_id = 0;
+    click_ptr = nullptr;
 }
 
-Texture_Panel::Texture_Panel(GLuint texture, float panel_x, float panel_y, float panel_width, float panel_height) : UI_Panel(panel_x, panel_y, panel_width, panel_height) {
+Texture_Panel::Texture_Panel(GLuint texture, float panel_x, float panel_y, float panel_width, float panel_height, void (*on_click_ptr)(void)) : UI_Panel(panel_x, panel_y, panel_width, panel_height) {
     texture_id = texture;
+    click_ptr = on_click_ptr;
 }
 
 void Texture_Panel::render() {
     glUniform1i(is_textured_unif, 1);
     glBindTexture(GL_TEXTURE_2D, texture_id);
 
-    float offset[2] = {getX(), getY()};
-    float scale[2] = {getWidth(), getHeight()};
+    float offset[2] = {x, y};
+    float scale[2] = {width, height};
 
     glUniform2fv(offset_unif, 1, &offset[0]);
     glUniform2fv(scale_unif, 1, &scale[0]);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, face_buffer);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, NULL);
+}
+
+bool Texture_Panel::click_handler(float click_x, float click_y) {
+    if(click_ptr != nullptr) {
+        if(click_x >= x && click_x <= x + width && click_y >= y && click_y <= y + height) {
+            click_ptr();
+            return true;
+        }
+    }
+
+    return false;
 }
 
 BounceAnimation::BounceAnimation() {

@@ -1,7 +1,7 @@
 #include "gl_base.h"
 
 GLuint program, edge_buffer, face_buffer, pos_atr, uv_atr, tex_lay;
-GLuint is_textured_unif, fill_colour_unif, offset_unif, scale_unif;
+GLuint is_textured_unif, fill_colour_unif, offset_unif, scale_unif, width_unif, height_unif;
 
 static void check_compile_result(GLuint target, GLuint shader, GLint result) {
     if(result != -1) return;
@@ -93,6 +93,9 @@ static void get_locations() {
     offset_unif = glGetUniformLocation(program, "offset");
     scale_unif = glGetUniformLocation(program, "scale");
     tex_lay = glGetUniformLocation(program, "tex_layer");
+
+    width_unif = glGetUniformLocation(program, "screen_width");
+    height_unif = glGetUniformLocation(program, "screen_height");
 }
 
 static void load_panel_buffers() {

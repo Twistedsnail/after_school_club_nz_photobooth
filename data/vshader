@@ -5,11 +5,17 @@ attribute vec2 tex_coord;
 
 uniform vec2 offset;
 uniform vec2 scale;
+uniform float screen_width;
+uniform float screen_height;
 
 varying vec2 tex_out;
 
 void main() {
-	vec2 pos = (offset.xy + scale.xy * position.xy) * vec2(2.f, -2.f) - vec2(1.f, -1.f);
+	vec2 device_scale = scale.xy * position.xy / vec2(screen_width, screen_height);
+	vec2 device_offset = offset.xy / vec2(screen_width, screen_height);
+
+	vec2 pos = (device_offset + device_scale) * vec2(2.f, -2.f) - vec2(1.f, -1.f);
 	gl_Position = vec4(pos.xy, position.z, 1.f);
+
 	tex_out = tex_coord;
 }

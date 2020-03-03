@@ -28,17 +28,6 @@ static void glfw_error(int code, const char *msg) {
 	printf("GLFW Error %i: %s", code, msg);
 }
 
-static rect_t make_rect(int x, int y, unsigned width, unsigned height) {
-    rect_t rect = {
-        .x = x,
-        .y = y,
-        .width = width,
-        .height = height
-    };
-
-    return rect;
-}
-
 void load_preview(char *data, unsigned long *sze) {
     Magick::Blob data_blob(data, *sze);
     Magick::Image eye_img(data_blob);
@@ -77,51 +66,47 @@ static void resize_graphics(GLFWwindow *window, int width, int height) {
     window_dimensions.xOff(x_off);
     window_dimensions.yOff(y_off);
 
+    glUniform1f(width_unif, 1280.f);
+    glUniform1f(height_unif, 800.f);
+
     glViewport(x_off, y_off, 1280, 800);
 }
 
-/*static void click_callback(GLFWwindow *window, int button, int action, int modifiers) {
+static void click_callback(GLFWwindow *window, int button, int action, int modifiers) {
     if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
         double x_pos, y_pos;
         glfwGetCursorPos(window, &x_pos, &y_pos);
         x_pos -= (double)window_dimensions.xOff();
         y_pos -= (double)window_dimensions.yOff();
 
-        bool clicked = false;
+        for(int i = ui_panels[state].size() - 1; i > -1; i --) {
+            UI_Panel *panel = &ui_panels[state][i];
 
-        for(unsigned i = 0; i < ui_panels[state].size(); i ++) {
-            ui_panel_t *panel = &ui_panels[state][i];
-
-            if(panel->click_fn == nullptr) continue;
-
-            if(panel->rect_geom.x <= (int)x_pos && panel->rect_geom.y <= (int)y_pos &&
-            (panel->rect_geom.x + (int)panel->rect_geom.width) >= (int)x_pos &&
-            (panel->rect_geom.y + (int)panel->rect_geom.height) >= (int)y_pos) {
-                clicked = true;
-                panel->click_fn();
+            if(panel->click_handler(x_pos, y_pos)) {
+                break;
             }
         }
-
-        if(!clicked) {
-            glClearColor(0.f, 0.f, 0.f, 1.f);
-        }
     }
-}*/
+}
 
 static void set_red() {
     selected = 0;
 }
 
 static void set_blue() {
-    selected = 2;
     bounce1.reset();
-    bounce2.reset();
+    if(selected != 2) {
+        selected = 2;
+        bounce2.reset();
+    }
 }
 
 static void set_green() {
-    selected = 1;
-    bounce1.reset();
     bounce2.reset();
+    if(selected != 1) {
+        selected = 1;
+        bounce1.reset();
+    }
 }
 
 static void goto_layout_state() {
@@ -183,6 +168,7 @@ void open_window() {
 	glfwMakeContextCurrent(window);
 
 	glewInit();
+    init_gl();
 
 	glfwSwapInterval(0);
 
@@ -195,72 +181,22 @@ void open_window() {
 
 	//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-	init_gl();
     load_panel_textures();
 
     // Idle background
-    Texture_Panel touch_panel1 = Texture_Panel(blurred_tex, 0.f, -26.f, 1280.f, 853.f);
-    Texture_Panel touch_panel2 = Texture_Panel(touch_text_tex, window_dimensions.width() / 2 - 510, window_dimensions.height() / 2 - 71, 1021.f, 142.f);
-    /*ui_panel_t touch_panel1 = {
-        .textured = true,
-        .stroke = 0.f,
-        .fill_colour = {0.f, 0.f, 0.f},
-        .stroke_colour = {0.f, 0.f, 0.f},
-        .texture = blurred_tex,
-        .rect_geom = make_rect(0, -26, 1280, 853),
-        .click_fn = goto_layout_state
-    };
+    Texture_Panel touch_panel1 = Texture_Panel(blurred_tex, 0.f, -26.f, 1280.f, 853.f, goto_layout_state);
+    Texture_Panel touch_panel2 = Texture_Panel(touch_text_tex, 130.f, 329.f, 1021.f, 142.f);
 
-    // Idle text
-    ui_panel_t touch_panel2 = {
-        .textured = true,
-        .stroke = 0.f,
-        .fill_colour = {0.f, 0.f, 0.f},
-        .stroke_colour = {0.f, 0.f, 0.f},
-        .texture = touch_text_tex,
-        .rect_geom = make_rect(window_dimensions.width() / 2 - 510, window_dimensions.height() / 2 - 71, 1021, 142),
-        .click_fn = nullptr
-    };
-
-    // Select background
-    ui_panel_t test_panel1 = {
-        .textured = true,
-        .stroke = 0.f,
-        .fill_colour = {1.f, 0.f, 0.f},
-        .stroke_colour = {0.f, 1.f, 1.f},
-        .texture = select_back_tex,
-        .rect_geom = make_rect(0, 0, window_dimensions.width(), window_dimensions.height()),
-        .click_fn = set_red
-    };
-
-    // Select vertical
-    ui_panel_t test_panel2 = {
-        .textured = true,
-        .stroke = 0.f,
-        .fill_colour = {0.f, 1.f, 0.f},
-        .stroke_colour = {1.f, 0.f, 1.f},
-        .texture = select_vertical_tex,
-        .rect_geom = make_rect(216, 109, 359, 606),
-        .click_fn = set_green
-    };
-
-    // Select polaroid
-    ui_panel_t test_panel3 = {
-        .textured = true,
-        .stroke = 0.f,
-        .fill_colour = {0.f, 0.f, 1.f},
-        .stroke_colour = {1.f, 1.f, 0.f},
-        .texture = select_polaroid_tex,
-        .rect_geom = make_rect(684, 182, 399, 461),
-        .click_fn = set_blue
-    };*/
+    Texture_Panel select_panel1 = Texture_Panel(select_back_tex, 0.f, 0.f, 1280.f, 800.f, set_red);
+    Texture_Panel select_panel2 = Texture_Panel(select_vertical_tex, 216.f, 109.f, 359.f, 606.f, set_green);
+    Texture_Panel select_panel3 = Texture_Panel(select_polaroid_tex, 684.f, 182.f, 399.f, 461.f, set_blue);
 
     ui_panels[0].push_back(touch_panel1);
     ui_panels[0].push_back(touch_panel2);
 
-    /*ui_panels[1].push_back(test_panel1);
-    ui_panels[1].push_back(test_panel2);
-    ui_panels[1].push_back(test_panel3);*/
+    ui_panels[1].push_back(select_panel1);
+    ui_panels[1].push_back(select_panel2);
+    ui_panels[1].push_back(select_panel3);
 }
 
 void update_window() {
@@ -275,44 +211,50 @@ void update_window() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     for(unsigned i = 0; i < ui_panels[state].size(); i ++) {
-        ui_panel_t *panel = &ui_panels[state][i];
+        UI_Panel *panel = &ui_panels[state][i];
 
         if(state == 0 && i == 1) {
             scale1.progress_timer(dT);
             
-            int xAmount = (int)scale1.modify_feature((float)panel->rect_geom.width);
-            int yAmount = (int)scale1.modify_feature((float)panel->rect_geom.height);
+            float xAmount = scale1.modify_feature(panel->width);
+            float yAmount = scale1.modify_feature(panel->height);
 
-            panel->rect_geom.y -= yAmount / 2;
-            panel->rect_geom.height += yAmount;
-            panel->rect_geom.x -= xAmount / 2;
-            panel->rect_geom.width += xAmount;
+            panel->y -= yAmount / 2.f;
+            panel->height += yAmount;
+            panel->x -= xAmount / 2.f;
+            panel->width += xAmount;
 
-            render_panel(panel);
+            panel->render();
 
-            panel->rect_geom.y += yAmount / 2;
-            panel->rect_geom.height -= yAmount;
-            panel->rect_geom.x += xAmount / 2;
-            panel->rect_geom.width -= xAmount;
+            panel->y += yAmount / 2.f;
+            panel->height -= yAmount;
+            panel->x += xAmount / 2.f;
+            panel->width -= xAmount;
         }
         else if(state == 1) {
             if(selected == 1 && i == 1) {
                 bounce1.progress_timer(dT);
-                int original_y = panel->rect_geom.y;
-                panel->rect_geom.y = (int)bounce1.modify_feature((float)panel->rect_geom.y);
-                render_panel(panel);
-                panel->rect_geom.y = original_y;
+
+                float original_y = panel->y;
+                panel->y = bounce1.modify_feature(panel->y);
+
+                panel->render();
+
+                panel->y = original_y;
             }
             else if(selected == 2 && i == 2) {
                 bounce2.progress_timer(dT);
-                int original_y = panel->rect_geom.y;
-                panel->rect_geom.y = (int)bounce2.modify_feature((float)panel->rect_geom.y);
-                render_panel(panel);
-                panel->rect_geom.y = original_y;
+
+                float original_y = panel->y;
+                panel->y = bounce2.modify_feature(panel->y);
+                
+                panel->render();
+
+                panel->y = original_y;
             }
-            else render_panel(panel);
+            else panel->render();
         }
-        else render_panel(panel);
+        else panel->render();
     }
 
     glfwSwapBuffers(window);
