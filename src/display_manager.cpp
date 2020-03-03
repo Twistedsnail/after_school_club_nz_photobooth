@@ -139,7 +139,7 @@ static void load_panel_textures() {
     load_blurred_texture("../data/prev.jpg");
 
     create_texture(&touch_text_tex);
-    load_texture("../data/touch_text.png");
+    load_texture("../data/touch_text_fixed.png");
 
     create_texture(&select_back_tex);
     load_texture("../data/select_background.png");
@@ -155,7 +155,7 @@ static void load_interface() {
     load_panel_textures();
 
     Texture_Panel idle_background_panel = Texture_Panel(blurred_tex, 0.f, -26.f, 1280.f, 853.f, goto_layout_state);
-    Texture_Panel idle_text_panel = Texture_Panel(touch_text_tex, 130.f, 329.f, 1021.f, 142.f);
+    Texture_Panel idle_text_panel = Texture_Panel(touch_text_tex, 115.f, 332.f, 1051.f, 136.f);
 
     Texture_Panel select_background_panel = Texture_Panel(select_back_tex, 0.f, 0.f, 1280.f, 800.f, set_red);
     Texture_Panel select_vertical_panel = Texture_Panel(select_vertical_tex, 216.f, 109.f, 359.f, 606.f, set_green);
