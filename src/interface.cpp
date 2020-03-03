@@ -102,7 +102,7 @@ BounceAnimation::BounceAnimation(float maximum, float anim_scale, float anim_off
 }
 
 float BounceAnimation::modify_feature(float feature) {
-    float amount = abs(scale * sin(OMEGA * frequency * getTimerValue()/getTimerMaximum())) + offset;
+    float amount = abs(scale * sin(OMEGA * frequency * getTimerValue())) + offset;
     return feature - amount;
 }
 
@@ -117,6 +117,6 @@ ScaleAnimation::ScaleAnimation(float maximum, float anim_scale, float anim_offse
 }
 
 float ScaleAnimation::modify_feature(float feature) {
-    float amount = scale * sin(OMEGA * frequency * getTimerValue()/getTimerMaximum()) + offset;
+    float amount = scale * sin(OMEGA * frequency * getTimerValue()) + offset;
     return feature * amount;
 }
