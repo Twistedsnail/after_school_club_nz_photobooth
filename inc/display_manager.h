@@ -13,4 +13,3 @@ bool get_triggered(void);
 extern bool show_full;
 void load_preview(char *data, unsigned long *sze);
 void load_texture(std::string path);
-void load_full_texture(std::string path);

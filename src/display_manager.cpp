@@ -28,32 +28,29 @@ static void glfw_error(int code, const char *msg) {
 	printf("GLFW Error %i: %s", code, msg);
 }
 
+static const void *get_img_pixels(Magick::Image img) {
+    return img.getConstPixels(0, 0, img.columns(), img.rows());
+}
+
 void load_preview(char *data, unsigned long *sze) {
     Magick::Blob data_blob(data, *sze);
-    Magick::Image eye_img(data_blob);
-    const Magick::PixelPacket *ppp = eye_img.getConstPixels(0, 0, eye_img.columns(), eye_img.rows());
+    Magick::Image img(data_blob);
+
     glBindTexture(GL_TEXTURE_2D, preview_tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, eye_img.columns(), eye_img.rows(), 0, GL_BGRA, GL_UNSIGNED_SHORT, ppp);
+    load_pixels(img.columns(), img.rows(), get_img_pixels(img));
 }
 
 void load_texture(std::string path) {
-    Magick::Image eye_img(path.c_str());
-    const Magick::PixelPacket *ppp = eye_img.getConstPixels(0, 0, eye_img.columns(), eye_img.rows());
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, eye_img.columns(), eye_img.rows(), 0, GL_BGRA, GL_UNSIGNED_SHORT, ppp);
+    Magick::Image img(path.c_str());
+    load_pixels(img.columns(), img.rows(), get_img_pixels(img));
 }
 
 static void load_blurred_texture(std::string path) {
-    Magick::Image eye_img(path.c_str());
-    eye_img.blur(100.0, 100.0);
-    eye_img.syncPixels();
-    const Magick::PixelPacket *ppp = eye_img.getConstPixels(0, 0, eye_img.columns(), eye_img.rows());
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, eye_img.columns(), eye_img.rows(), 0, GL_BGRA, GL_UNSIGNED_SHORT, ppp);
-}
+    Magick::Image img(path.c_str());
+    img.blur(100.0, 100.0);
+    img.syncPixels();
 
-void load_full_texture(std::string path) {
-    Magick::Image eye_img(path.c_str());
-    const Magick::PixelPacket *ppp = eye_img.getConstPixels(0, 0, eye_img.columns(), eye_img.rows());
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, eye_img.columns(), eye_img.rows(), 0, GL_BGRA, GL_UNSIGNED_SHORT, ppp);
+    load_pixels(img.columns(), img.rows(), get_img_pixels(img));
 }
 
 static void resize_graphics(GLFWwindow *window, int width, int height) {
@@ -61,10 +58,7 @@ static void resize_graphics(GLFWwindow *window, int width, int height) {
     if(width > 1280) x_off = (width - 1280)/2;
     if(height > 800) y_off = (height - 800)/2;
 
-    window_dimensions.width(1280);
-    window_dimensions.height(800);
-    window_dimensions.xOff(x_off);
-    window_dimensions.yOff(y_off);
+    window_dimensions = Magick::Geometry(1280, 800, x_off, y_off);
 
     glUniform1f(width_unif, 1280.f);
     glUniform1f(height_unif, 800.f);
@@ -157,6 +151,24 @@ static void load_panel_textures() {
     load_texture("../data/select_polaroid.png");
 }
 
+static void load_interface() {
+    load_panel_textures();
+
+    Texture_Panel idle_background_panel = Texture_Panel(blurred_tex, 0.f, -26.f, 1280.f, 853.f, goto_layout_state);
+    Texture_Panel idle_text_panel = Texture_Panel(touch_text_tex, 130.f, 329.f, 1021.f, 142.f);
+
+    Texture_Panel select_background_panel = Texture_Panel(select_back_tex, 0.f, 0.f, 1280.f, 800.f, set_red);
+    Texture_Panel select_vertical_panel = Texture_Panel(select_vertical_tex, 216.f, 109.f, 359.f, 606.f, set_green);
+    Texture_Panel select_polaroid_panel = Texture_Panel(select_polaroid_tex, 684.f, 182.f, 399.f, 461.f, set_blue);
+
+    ui_panels[0].push_back(idle_background_panel);
+    ui_panels[0].push_back(idle_text_panel);
+
+    ui_panels[1].push_back(select_background_panel);
+    ui_panels[1].push_back(select_vertical_panel);
+    ui_panels[1].push_back(select_polaroid_panel);
+}
+
 void open_window() {
 	glfwInit();
 	glfwSetErrorCallback(glfw_error);
@@ -166,37 +178,20 @@ void open_window() {
 
 	window = glfwCreateWindow(mode->width, mode->height, "Test", monitor, NULL);
 	glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
 
 	glewInit();
     init_gl();
 
-	glfwSwapInterval(0);
-
 	int win_width, win_height;
+    glfwSetFramebufferSizeCallback(window, resize_graphics);
 	glfwGetFramebufferSize(window, &win_width, &win_height);
 	resize_graphics(window, win_width, win_height);
 
-	glfwSetFramebufferSizeCallback(window, resize_graphics);
 	glfwSetMouseButtonCallback(window, click_callback);
-
 	//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-    load_panel_textures();
-
-    // Idle background
-    Texture_Panel touch_panel1 = Texture_Panel(blurred_tex, 0.f, -26.f, 1280.f, 853.f, goto_layout_state);
-    Texture_Panel touch_panel2 = Texture_Panel(touch_text_tex, 130.f, 329.f, 1021.f, 142.f);
-
-    Texture_Panel select_panel1 = Texture_Panel(select_back_tex, 0.f, 0.f, 1280.f, 800.f, set_red);
-    Texture_Panel select_panel2 = Texture_Panel(select_vertical_tex, 216.f, 109.f, 359.f, 606.f, set_green);
-    Texture_Panel select_panel3 = Texture_Panel(select_polaroid_tex, 684.f, 182.f, 399.f, 461.f, set_blue);
-
-    ui_panels[0].push_back(touch_panel1);
-    ui_panels[0].push_back(touch_panel2);
-
-    ui_panels[1].push_back(select_panel1);
-    ui_panels[1].push_back(select_panel2);
-    ui_panels[1].push_back(select_panel3);
+    load_interface();
 }
 
 void update_window() {

@@ -116,6 +116,10 @@ static void load_panel_buffers() {
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faces), faces, GL_STATIC_DRAW);
 }
 
+void load_pixels(GLsizei width, GLsizei height, const void *pixels) {
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_SHORT, pixels);
+}
+
 void init_gl() {
     program = setup_gl_program("../data/vshader", "../data/fshader");
     glUseProgram(program);
