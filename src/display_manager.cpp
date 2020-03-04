@@ -11,18 +11,19 @@
 #include "interface.h"
 
 static GLFWwindow *window;
-static GLuint preview_tex, blurred_tex, touch_text_tex, select_back_tex, select_vertical_tex, select_polaroid_tex;
+static GLuint preview_tex, blurred_tex, touch_text_tex, select_back_tex, select_vertical_tex, select_polaroid_tex, capture_background_tex;
 
-static unsigned state = 0;
+static state_t state = IDLE_STATE;
 
 static Magick::Geometry window_dimensions;
 
-static std::vector<Texture_Panel> ui_panels[2];
+static std::vector<Texture_Panel> ui_panels[NUMBER_OF_STATES];
 
-static int selected = 0;
+static int selected = -1;
 
-static BounceAnimation bounce1 = BounceAnimation(3.f, 10.f, 0.f, 1.f), bounce2 = BounceAnimation(3.f, 20.f, 0.f, 5.f);
-static ScaleAnimation scale1 = ScaleAnimation(3.f, 0.05f, 0.f, 1.f);
+static Timer bounce_timer = Timer(3.f);
+static BounceAnimation bounce1 = BounceAnimation(&bounce_timer, 5.f, 0.f, 0.5f), bounce2 = BounceAnimation(&bounce_timer, 5.f, 0.25f, 0.5f);
+static ScaleAnimation scale1 = ScaleAnimation(&bounce_timer, 0.05f, 0.f, 1.f);
 
 static void glfw_error(int code, const char *msg) {
 	printf("GLFW Error %i: %s", code, msg);
@@ -67,7 +68,14 @@ static void resize_graphics(GLFWwindow *window, int width, int height) {
 }
 
 static void click_callback(GLFWwindow *window, int button, int action, int modifiers) {
-    if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+    static bool primed = false;
+
+    if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        primed = true;
+    }
+    else if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE && primed) {
+        primed = false;
+
         double x_pos, y_pos;
         glfwGetCursorPos(window, &x_pos, &y_pos);
         x_pos -= (double)window_dimensions.xOff();
@@ -88,23 +96,18 @@ static void set_red() {
 }
 
 static void set_blue() {
-    bounce1.reset();
-    if(selected != 2) {
-        selected = 2;
-        bounce2.reset();
-    }
+    state = CAPTURE_STATE;
+    selected = 2;
 }
 
 static void set_green() {
-    bounce2.reset();
-    if(selected != 1) {
-        selected = 1;
-        bounce1.reset();
-    }
+    state = CAPTURE_STATE;
+    selected = 1;
 }
 
 static void goto_layout_state() {
-    state = 1;
+    state = SELECT_STATE;
+    bounce_timer.reset();
 }
 
 /*static void render_panel(ui_panel_t *panel) {
@@ -149,6 +152,9 @@ static void load_panel_textures() {
 
     create_texture(&select_polaroid_tex);
     load_texture("../data/select_polaroid.png");
+
+    create_texture(&capture_background_tex);
+    load_texture("../data/capture_background.png");
 }
 
 static void load_interface() {
@@ -157,16 +163,22 @@ static void load_interface() {
     Texture_Panel idle_background_panel = Texture_Panel(blurred_tex, 0.f, -26.f, 1280.f, 853.f, goto_layout_state);
     Texture_Panel idle_text_panel = Texture_Panel(touch_text_tex, 115.f, 332.f, 1051.f, 136.f);
 
+    ui_panels[IDLE_STATE].push_back(idle_background_panel);
+    ui_panels[IDLE_STATE].push_back(idle_text_panel);
+
     Texture_Panel select_background_panel = Texture_Panel(select_back_tex, 0.f, 0.f, 1280.f, 800.f, set_red);
     Texture_Panel select_vertical_panel = Texture_Panel(select_vertical_tex, 216.f, 109.f, 359.f, 606.f, set_green);
     Texture_Panel select_polaroid_panel = Texture_Panel(select_polaroid_tex, 684.f, 182.f, 399.f, 461.f, set_blue);
 
-    ui_panels[0].push_back(idle_background_panel);
-    ui_panels[0].push_back(idle_text_panel);
+    ui_panels[SELECT_STATE].push_back(select_background_panel);
+    ui_panels[SELECT_STATE].push_back(select_vertical_panel);
+    ui_panels[SELECT_STATE].push_back(select_polaroid_panel);
 
-    ui_panels[1].push_back(select_background_panel);
-    ui_panels[1].push_back(select_vertical_panel);
-    ui_panels[1].push_back(select_polaroid_panel);
+    Texture_Panel capture_background_panel = Texture_Panel(capture_background_tex, 0.f, 0.f, 1280.f, 800.f);
+    Texture_Panel capture_preview_panel = Texture_Panel(preview_tex, 280.f, 100.f, 900.f, 600.f);
+
+    ui_panels[CAPTURE_STATE].push_back(capture_background_panel);
+    ui_panels[CAPTURE_STATE].push_back(capture_preview_panel);
 }
 
 void open_window() {
@@ -205,12 +217,12 @@ void update_window() {
     glfwPollEvents();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    bounce_timer.progress_timer(dT);
+
     for(unsigned i = 0; i < ui_panels[state].size(); i ++) {
         UI_Panel *panel = &ui_panels[state][i];
 
-        if(state == 0 && i == 1) {
-            scale1.progress_timer(dT);
-            
+        if(state == IDLE_STATE && i == 1) {            
             float xAmount = scale1.modify_feature(panel->width);
             float yAmount = scale1.modify_feature(panel->height);
 
@@ -226,10 +238,8 @@ void update_window() {
             panel->x += xAmount / 2.f;
             panel->width -= xAmount;
         }
-        else if(state == 1) {
-            if(selected == 1 && i == 1) {
-                bounce1.progress_timer(dT);
-
+        else if(state == SELECT_STATE) {
+            if(i == 1) {
                 float original_y = panel->y;
                 panel->y = bounce1.modify_feature(panel->y);
 
@@ -237,9 +247,7 @@ void update_window() {
 
                 panel->y = original_y;
             }
-            else if(selected == 2 && i == 2) {
-                bounce2.progress_timer(dT);
-
+            else if(i == 2) {
                 float original_y = panel->y;
                 panel->y = bounce2.modify_feature(panel->y);
                 

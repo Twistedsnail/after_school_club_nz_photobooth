@@ -6,35 +6,62 @@
 
 #define OMEGA   6.283185307f
 
-Animation::Animation() {
+Timer::Timer() {
     timer_value = timer_maximum = 0.f;
+    one_shot = false;
 }
 
-Animation::Animation(float maximum) {
+Timer::Timer(float maximum, bool repeat, void (*on_complete_ptr)(void)) {
     timer_maximum = maximum;
+    one_shot = !repeat;
+    complete_ptr = on_complete_ptr;
 }
 
-void Animation::reset() {
+void Timer::reset() {
     timer_value = 0.f;
 }
 
-void Animation::progress_timer(float dt) {
-    timer_value += dt;
-    while(timer_value > timer_maximum && timer_maximum != 0.f) {
-        timer_value -= timer_maximum;
+void Timer::progress_timer(float dt) {
+    if(timer_value < timer_maximum) {
+        timer_value += dt;
+
+        if(timer_value >= timer_maximum && complete_ptr != nullptr) {
+            complete_ptr();
+        } 
+
+        if(!one_shot) {
+            while(timer_value > timer_maximum && timer_maximum != 0.f) {
+                timer_value -= timer_maximum;
+            }
+        }
+    }    
+}
+
+float Timer::getTimerMaximum() {
+    return timer_maximum;
+}
+
+float Timer::getTimerValue() {
+    return timer_value;
+}
+
+Animation::Animation() {
+    timer_ptr = nullptr;
+}
+
+Animation::Animation(Timer *timer) {
+    timer_ptr = timer;
+}
+
+float Animation::getTimerValue() {
+    if(timer_ptr != nullptr) {
+        return timer_ptr->getTimerValue();
     }
+    return 0.f;
 }
 
 float Animation::modify_feature(float feature) {
     return feature;
-}
-
-float Animation::getTimerMaximum() {
-    return timer_maximum;
-}
-
-float Animation::getTimerValue() {
-    return timer_value;
 }
 
 UI_Panel::UI_Panel() {
@@ -95,14 +122,14 @@ BounceAnimation::BounceAnimation() {
     scale = offset = frequency = 0.f;
 }
 
-BounceAnimation::BounceAnimation(float maximum, float anim_scale, float anim_offset, float anim_frequency) : Animation(maximum) {
+BounceAnimation::BounceAnimation(Timer *timer, float anim_scale, float anim_offset, float anim_frequency) : Animation(timer) {
     scale = anim_scale;
     offset = anim_offset;
     frequency = anim_frequency;
 }
 
 float BounceAnimation::modify_feature(float feature) {
-    float amount = abs(scale * sin(OMEGA * frequency * getTimerValue())) + offset;
+    float amount = abs(scale * sin(OMEGA * frequency * getTimerValue() + offset * OMEGA));
     return feature - amount;
 }
 
@@ -110,7 +137,7 @@ ScaleAnimation::ScaleAnimation() {
     scale = offset = frequency = 0.f;
 }
 
-ScaleAnimation::ScaleAnimation(float maximum, float anim_scale, float anim_offset, float anim_frequency) : Animation(maximum) {
+ScaleAnimation::ScaleAnimation(Timer *timer, float anim_scale, float anim_offset, float anim_frequency) : Animation(timer) {
     scale = anim_scale;
     offset = anim_offset;
     frequency = anim_frequency;

@@ -3,18 +3,30 @@
 #include <stdio.h>
 #include <GL/glew.h>
 
-class Animation {
+class Timer {
     float timer_value, timer_maximum;
+    bool one_shot;
+    void (*complete_ptr)(void);
 
 public:
-    Animation();
-    Animation(float maximum);
+    Timer();
+    Timer(float maximum, bool repeat = true, void (*on_complete_ptr)(void) = nullptr);
 
     void reset();
     void progress_timer(float dt);
-    virtual float modify_feature(float feature);
     float getTimerValue();
     float getTimerMaximum();
+};
+
+class Animation {
+    Timer *timer_ptr;
+
+public:
+    Animation();
+    Animation(Timer *timer);
+    
+    float getTimerValue();
+    virtual float modify_feature(float feature);
 };
 
 class UI_Panel {
@@ -46,7 +58,7 @@ class BounceAnimation : public Animation {
 
 public:
     BounceAnimation();
-    BounceAnimation(float maximum, float anim_scale, float anim_offset, float anim_frequency);
+    BounceAnimation(Timer *timer, float anim_scale, float anim_offset, float anim_frequency);
 
     virtual float modify_feature(float feature);
 };
@@ -56,7 +68,7 @@ class ScaleAnimation : public Animation {
 
 public:
     ScaleAnimation();
-    ScaleAnimation(float maximum, float anim_scale, float anim_offset, float anim_frequency);
+    ScaleAnimation(Timer *timer, float anim_scale, float anim_offset, float anim_frequency);
 
     virtual float modify_feature(float feature);
 };
