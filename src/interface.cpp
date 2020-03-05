@@ -60,6 +60,13 @@ float Animation::getTimerValue() {
     return 0.f;
 }
 
+float Animation::getTimerMaximum() {
+    if(timer_ptr != nullptr) {
+        return timer_ptr->getTimerMaximum();
+    }
+    return 0.f;
+}
+
 float Animation::modify_feature(float feature) {
     return feature;
 }
@@ -146,4 +153,74 @@ ScaleAnimation::ScaleAnimation(Timer *timer, float anim_scale, float anim_offset
 float ScaleAnimation::modify_feature(float feature) {
     float amount = scale * sin(OMEGA * frequency * getTimerValue()) + offset;
     return feature * amount;
+}
+
+CubicBezierAnimation::CubicBezierAnimation() {
+    x0 = x1 = y0 = y1 = 0.f;
+}
+
+CubicBezierAnimation::CubicBezierAnimation(Timer *timer, float p0x, float p0y, float p1x, float p1y) : Animation(timer) {
+    x0 = p0x;
+    y0 = p0y;
+    x1 = p1x;
+    y1 = p1y;
+}
+
+float CubicBezierAnimation::get_bezier_term(int i, float t) {
+    float term = 0.f;
+    switch(i) {
+        case 0:
+            term = 3.f * t * pow(1.f - t, 2.f);
+            break;
+        case 1:
+            term = 3.f * (1.f - t) * pow(t, 2.f);
+            break;
+        case 2:
+            term = pow(t, 3.f);
+            break;
+        default:
+            break;
+    }
+
+    return term;
+}
+
+float CubicBezierAnimation::get_bezier_x_gradient(float t) {
+    float dxdt = x0 * (t * (9.f * t - 12.f) + 3.f);
+    dxdt += x1 * (6.f - 9.f * t) * t;
+    dxdt += 3.f * pow(t, 2.f);
+
+    return dxdt;
+}
+
+float CubicBezierAnimation::get_y_given_t(float t) {
+    return (get_bezier_term(0, t) * y0 + get_bezier_term(1, t) * y1 + get_bezier_term(2, t));
+}
+
+float CubicBezierAnimation::get_x_given_t(float t) {
+    return (get_bezier_term(0, t) * x0 + get_bezier_term(1, t) * x1 + get_bezier_term(2, t));
+}
+
+float CubicBezierAnimation::get_t_given_x(float x) {
+    if(x == 0.f) return 0.f;
+
+    float guess_t = x;
+    float current_x_error = get_x_given_t(guess_t) - x;
+    float slope;
+
+    while(abs(current_x_error / x) >= 0.001f) {
+        current_x_error = get_x_given_t(guess_t) - x;
+        slope = get_bezier_x_gradient(guess_t);
+        if(slope == 0.f) return guess_t;
+
+        guess_t -= current_x_error / slope;
+    }
+
+    return guess_t;
+}
+
+float CubicBezierAnimation::modify_feature(float feature) {
+    float x = getTimerValue() / getTimerMaximum();
+    float t = get_t_given_x(x);
+    return get_y_given_t(t);
 }

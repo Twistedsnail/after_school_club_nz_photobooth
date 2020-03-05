@@ -203,6 +203,15 @@ void open_window() {
 	glfwSetMouseButtonCallback(window, click_callback);
 	//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
+    Timer test_tim = Timer(1.f);
+    CubicBezierAnimation test_bezier = CubicBezierAnimation(&test_tim, 0.f, 1.f, 0.f, 1.f);
+
+    printf("\nCubic Test: \n");
+    for(int i = 0; i < 1001; i ++) {
+        printf("%.3f\n", test_bezier.modify_feature(0.f));
+        test_tim.progress_timer(0.001f);
+    }
+
     load_interface();
 }
 

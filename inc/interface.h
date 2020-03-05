@@ -26,6 +26,7 @@ public:
     Animation(Timer *timer);
     
     float getTimerValue();
+    float getTimerMaximum();
     virtual float modify_feature(float feature);
 };
 
@@ -69,6 +70,23 @@ class ScaleAnimation : public Animation {
 public:
     ScaleAnimation();
     ScaleAnimation(Timer *timer, float anim_scale, float anim_offset, float anim_frequency);
+
+    virtual float modify_feature(float feature);
+};
+
+class CubicBezierAnimation : public Animation {
+    float x0, x1, y0, y1;
+
+    float get_bezier_term(int i, float t);
+    float get_bezier_x_gradient(float t);
+
+    float get_t_given_x(float x);
+    float get_y_given_t(float t);
+    float get_x_given_t(float t);
+
+public:
+    CubicBezierAnimation();
+    CubicBezierAnimation(Timer *timer, float p0x, float p0y, float p1x, float p1y);
 
     virtual float modify_feature(float feature);
 };
