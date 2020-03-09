@@ -34,6 +34,11 @@ void Timer::progress_timer(float dt) {
                 timer_value -= timer_maximum;
             }
         }
+        else {
+            if(timer_value > timer_maximum) {
+                timer_value = timer_maximum;
+            }
+        }
     }    
 }
 
