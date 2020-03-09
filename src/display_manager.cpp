@@ -19,11 +19,16 @@ static Magick::Geometry window_dimensions;
 
 static std::vector<Texture_Panel> ui_panels[NUMBER_OF_STATES];
 
-static int selected = -1;
+static int selected = 0;
 
 static Timer bounce_timer = Timer(3.f);
 static BounceAnimation bounce1 = BounceAnimation(&bounce_timer, 5.f, 0.f, 0.5f), bounce2 = BounceAnimation(&bounce_timer, 5.f, 0.25f, 0.5f);
 static ScaleAnimation scale1 = ScaleAnimation(&bounce_timer, 0.05f, 0.f, 1.f);
+
+static Timer tween_timer = Timer(0.5f, false), second_tween_timer = Timer(0.5f, false);
+static CubicBezierAnimation in_out_bezier = CubicBezierAnimation(&tween_timer, 0.42f, 0.f, 0.58f, 1.f), out_bezier = CubicBezierAnimation(&second_tween_timer, 0.0f, 0.f, 0.58f, 1.f);
+
+static bool exiting = false;
 
 static void glfw_error(int code, const char *msg) {
 	printf("GLFW Error %i: %s", code, msg);
@@ -96,18 +101,225 @@ static void set_red() {
 }
 
 static void set_blue() {
-    state = CAPTURE_STATE;
+    exiting = true;
     selected = 2;
 }
 
 static void set_green() {
-    state = CAPTURE_STATE;
+    exiting = true;
     selected = 1;
 }
 
 static void goto_layout_state() {
-    state = SELECT_STATE;
-    bounce_timer.reset();
+    exiting = true;
+}
+
+static void do_idle_state(float dT) {
+    bounce_timer.progress_timer(dT);
+
+    if(exiting) {
+        if(tween_timer.getTimerValue() == tween_timer.getTimerMaximum()) {
+            exiting = false;
+            tween_timer.reset();
+            state = SELECT_STATE;
+        }
+
+        tween_timer.progress_timer(dT);
+        float tween = 800.f * in_out_bezier.modify_feature(0.f);
+
+        for(unsigned i = 0; i < ui_panels[IDLE_STATE].size(); i ++) {
+            UI_Panel *panel = &ui_panels[IDLE_STATE][i];
+
+            if(i == 1) {            
+                float xAmount = scale1.modify_feature(panel->width);
+                float yAmount = scale1.modify_feature(panel->height);
+
+                panel->y -= yAmount / 2.f + tween;
+                panel->height += yAmount;
+                panel->x -= xAmount / 2.f;
+                panel->width += xAmount;
+
+                panel->render();
+
+                panel->y += yAmount / 2.f + tween;
+                panel->height -= yAmount;
+                panel->x += xAmount / 2.f;
+                panel->width -= xAmount;
+            }
+            else {
+                float original_y = panel->y;
+                
+                panel->y -= tween;
+                panel->render();
+                panel->y = original_y;
+            }
+        }
+
+        for(unsigned i = 0; i < ui_panels[SELECT_STATE].size(); i ++) {
+            UI_Panel *panel = &ui_panels[SELECT_STATE][i];
+
+            if(i == 1) {
+                float original_y = panel->y;
+
+                panel->y = bounce1.modify_feature(panel->y) + (800.f - tween);
+                panel->render();
+                panel->y = original_y;
+            }
+            else if(i == 2) {
+                float original_y = panel->y;
+
+                panel->y = bounce2.modify_feature(panel->y) + (800.f - tween);
+                panel->render();
+                panel->y = original_y;
+            }
+            else {
+                float original_y = panel->y;
+                
+                panel->y += (800.f - tween);
+                panel->render();
+                panel->y = original_y;
+            }
+        }
+    }
+    else {
+        for(unsigned i = 0; i < ui_panels[IDLE_STATE].size(); i ++) {
+            UI_Panel *panel = &ui_panels[IDLE_STATE][i];
+
+            if(i == 1) {            
+                float xAmount = scale1.modify_feature(panel->width);
+                float yAmount = scale1.modify_feature(panel->height);
+
+                panel->y -= yAmount / 2.f;
+                panel->height += yAmount;
+                panel->x -= xAmount / 2.f;
+                panel->width += xAmount;
+
+                panel->render();
+
+                panel->y += yAmount / 2.f;
+                panel->height -= yAmount;
+                panel->x += xAmount / 2.f;
+                panel->width -= xAmount;
+            }
+            else panel->render();
+        }
+    }
+}
+
+static void do_select_state(float dT) {
+    bounce_timer.progress_timer(dT);
+
+    static bool exiting_stage_2 = false;
+
+    if(exiting) {
+        if(second_tween_timer.getTimerValue() == second_tween_timer.getTimerMaximum()) {
+            exiting_stage_2 = true;
+        }
+
+        second_tween_timer.progress_timer(dT);
+
+        if(exiting_stage_2) {
+            if(tween_timer.getTimerValue() == tween_timer.getTimerMaximum()) {
+                exiting = false;
+                tween_timer.reset();
+                state = CAPTURE_STATE;
+            }
+
+            tween_timer.progress_timer(dT);
+
+            float tween = 1280.f * in_out_bezier.modify_feature(0.f);
+
+            for(unsigned i = 0; i < ui_panels[CAPTURE_STATE].size(); i ++) {
+                UI_Panel *panel = &ui_panels[CAPTURE_STATE][i];
+
+                float original_x = panel->x;
+                
+                panel->x += (1280.f - tween);
+                panel->render();
+                panel->x = original_x;
+            }
+
+            for(unsigned i = 0; i < ui_panels[SELECT_STATE].size(); i ++) {
+                UI_Panel *panel = &ui_panels[SELECT_STATE][i];
+
+                if(i == 0) {
+                    float original_x = panel->x;
+
+                    panel->x -= tween;
+                    panel->render();
+                    panel->x = original_x;
+                }
+                else if(i == selected) {
+                    float original_y = panel->y;
+                    float original_x = panel->x;
+
+                    panel->y = bounce2.modify_feature(panel->y);
+                    panel->x -= tween;
+                    panel->render();
+                    panel->y = original_y;
+                    panel->x = original_x;
+                }
+            }
+        }
+        else {
+            for(unsigned i = 0; i < ui_panels[SELECT_STATE].size(); i ++) {
+                UI_Panel *panel = &ui_panels[SELECT_STATE][i];
+
+                if(i == 0) {
+                    panel->render();
+                }
+                else if(i == selected) {
+                    float original_y = panel->y;
+
+                    if(selected == 1) {
+                        panel->y = bounce1.modify_feature(panel->y);
+                    }
+                    else {
+                        panel->y = bounce2.modify_feature(panel->y);
+                    }
+                    
+                    panel->render();
+                    panel->y = original_y;
+                }
+                else {
+                    float original_y = panel->y;
+
+                    panel->y = bounce2.modify_feature(panel->y) + 800.f * out_bezier.modify_feature(0.f);
+                    panel->render();
+                    panel->y = original_y;
+                }
+            }
+        }
+    }
+    else {
+        for(unsigned i = 0; i < ui_panels[SELECT_STATE].size(); i ++) {
+            UI_Panel *panel = &ui_panels[SELECT_STATE][i];
+
+            if(i == 1) {
+                float original_y = panel->y;
+
+                panel->y = bounce1.modify_feature(panel->y);
+                panel->render();
+                panel->y = original_y;
+            }
+            else if(i == 2) {
+                float original_y = panel->y;
+
+                panel->y = bounce2.modify_feature(panel->y);
+                panel->render();
+                panel->y = original_y;
+            }
+            else panel->render();
+        }
+    }
+}
+
+static void do_capture_state(float dT) {
+    for(unsigned i = 0; i < ui_panels[CAPTURE_STATE].size(); i ++) {
+        UI_Panel *panel = &ui_panels[CAPTURE_STATE][i];
+
+        panel->render();
+    }
 }
 
 /*static void render_panel(ui_panel_t *panel) {
@@ -203,15 +415,6 @@ void open_window() {
 	glfwSetMouseButtonCallback(window, click_callback);
 	//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-    Timer test_tim = Timer(1.f);
-    CubicBezierAnimation test_bezier = CubicBezierAnimation(&test_tim, 0.f, 1.f, 0.f, 1.f);
-
-    printf("\nCubic Test: \n");
-    for(int i = 0; i < 1001; i ++) {
-        printf("%.3f\n", test_bezier.modify_feature(0.f));
-        test_tim.progress_timer(0.001f);
-    }
-
     load_interface();
 }
 
@@ -226,47 +429,14 @@ void update_window() {
     glfwPollEvents();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    bounce_timer.progress_timer(dT);
-
-    for(unsigned i = 0; i < ui_panels[state].size(); i ++) {
-        UI_Panel *panel = &ui_panels[state][i];
-
-        if(state == IDLE_STATE && i == 1) {            
-            float xAmount = scale1.modify_feature(panel->width);
-            float yAmount = scale1.modify_feature(panel->height);
-
-            panel->y -= yAmount / 2.f;
-            panel->height += yAmount;
-            panel->x -= xAmount / 2.f;
-            panel->width += xAmount;
-
-            panel->render();
-
-            panel->y += yAmount / 2.f;
-            panel->height -= yAmount;
-            panel->x += xAmount / 2.f;
-            panel->width -= xAmount;
-        }
-        else if(state == SELECT_STATE) {
-            if(i == 1) {
-                float original_y = panel->y;
-                panel->y = bounce1.modify_feature(panel->y);
-
-                panel->render();
-
-                panel->y = original_y;
-            }
-            else if(i == 2) {
-                float original_y = panel->y;
-                panel->y = bounce2.modify_feature(panel->y);
-                
-                panel->render();
-
-                panel->y = original_y;
-            }
-            else panel->render();
-        }
-        else panel->render();
+    if(state == IDLE_STATE) {
+        do_idle_state(dT);
+    }
+    else if(state == SELECT_STATE) {
+        do_select_state(dT);
+    }
+    else if(state == CAPTURE_STATE) {
+        do_capture_state(dT);
     }
 
     glfwSwapBuffers(window);
