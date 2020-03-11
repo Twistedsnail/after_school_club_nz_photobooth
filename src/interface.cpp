@@ -100,7 +100,8 @@ Texture_Panel::Texture_Panel() {
     click_ptr = nullptr;
 }
 
-Texture_Panel::Texture_Panel(GLuint texture, float panel_x, float panel_y, float panel_width, float panel_height, void (*on_click_ptr)(void)) : UI_Panel(panel_x, panel_y, panel_width, panel_height) {
+Texture_Panel::Texture_Panel(GLuint texture, float panel_x, float panel_y, float panel_width, float panel_height,
+                             void (*on_click_ptr)(void)) : UI_Panel(panel_x, panel_y, panel_width, panel_height) {
     texture_id = texture;
     click_ptr = on_click_ptr;
 }
@@ -109,11 +110,15 @@ void Texture_Panel::render() {
     glUniform1i(is_textured_unif, 1);
     glBindTexture(GL_TEXTURE_2D, texture_id);
 
-    float offset[2] = {x, y};
-    float scale[2] = {width, height};
+    float pos_offset[2] = {x, y};
+    float pos_scale[2] = {width, height};
+    glUniform2fv(pos_offset_unif, 1, &pos_offset[0]);
+    glUniform2fv(pos_scale_unif, 1, &pos_scale[0]);
 
-    glUniform2fv(offset_unif, 1, &offset[0]);
-    glUniform2fv(scale_unif, 1, &scale[0]);
+    float uv_offset[2] = {0.f, 0.f};
+    float uv_scale[2] = {1.f, 1.f};
+    glUniform2fv(uv_offset_unif, 1, &uv_offset[0]);
+    glUniform2fv(uv_scale_unif, 1, &uv_scale[0]);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, face_buffer);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, NULL);
@@ -128,6 +133,46 @@ bool Texture_Panel::click_handler(float click_x, float click_y) {
     }
 
     return false;
+}
+
+Animated_Panel::Animated_Panel() {
+    columns = rows = frame = 0;
+}
+
+Animated_Panel::Animated_Panel(GLuint texture, unsigned x_tiles, unsigned y_tiles,
+                                float panel_x, float panel_y, float panel_width, float panel_height,
+                                void (*on_click_ptr)(void)) : Texture_Panel(texture, panel_x, panel_y, panel_width, panel_height, on_click_ptr) {
+    frame = 0;
+    columns = x_tiles;
+    rows = y_tiles;
+}
+
+void Animated_Panel::render() {
+    glUniform1i(is_textured_unif, 1);
+    glBindTexture(GL_TEXTURE_2D, texture_id);
+
+    float pos_offset[2] = {x, y};
+    float pos_scale[2] = {width, height};
+    glUniform2fv(pos_offset_unif, 1, &pos_offset[0]);
+    glUniform2fv(pos_scale_unif, 1, &pos_scale[0]);
+
+    float uv_offset[2] = {float(frame % columns), float(frame / columns)};
+    float uv_scale[2] = {1.f / float(columns), 1.f / float(rows)};
+    glUniform2fv(uv_offset_unif, 1, &uv_offset[0]);
+    glUniform2fv(uv_scale_unif, 1, &uv_scale[0]);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, face_buffer);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, NULL);
+}
+
+void Animated_Panel::set_frame(unsigned new_frame) {
+    if(new_frame < rows * columns) {
+        frame = new_frame;
+    }
+}
+
+unsigned Animated_Panel::get_max_frames() {
+    return rows * columns;
 }
 
 BounceAnimation::BounceAnimation() {

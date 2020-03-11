@@ -11,17 +11,26 @@
 #include "interface.h"
 
 static GLFWwindow *window;
-static GLuint preview_tex, blurred_tex, touch_text_tex, select_back_tex, select_vertical_tex, select_polaroid_tex, capture_background_tex;
+static GLuint preview_tex, blurred_tex, touch_text_tex, select_back_tex, select_vertical_tex, select_polaroid_tex, capture_background_tex, timer_tex, counter_tex;
 
 static state_t state = IDLE_STATE;
 
 static Magick::Geometry window_dimensions;
 
-static std::vector<Texture_Panel> ui_panels[NUMBER_OF_STATES];
+static std::vector<UI_Panel *> ui_panels[NUMBER_OF_STATES];
 
 static int selected = 0;
+static unsigned countdown = 5;
+static bool counting = true;
 
-static Timer bounce_timer = Timer(3.f);
+static void decrement_counter() {
+    countdown --;
+    if(countdown == 1) {
+        counting = false;
+    }
+}
+
+static Timer bounce_timer = Timer(3.f), dial_timer = Timer(1.f, true, decrement_counter);
 static BounceAnimation bounce1 = BounceAnimation(&bounce_timer, 5.f, 0.f, 0.5f), bounce2 = BounceAnimation(&bounce_timer, 5.f, 0.25f, 0.5f);
 static ScaleAnimation scale1 = ScaleAnimation(&bounce_timer, 0.05f, 0.f, 1.f);
 
@@ -87,7 +96,7 @@ static void click_callback(GLFWwindow *window, int button, int action, int modif
         y_pos -= (double)window_dimensions.yOff();
 
         for(int i = ui_panels[state].size() - 1; i > -1; i --) {
-            UI_Panel *panel = &ui_panels[state][i];
+            UI_Panel *panel = ui_panels[state][i];
 
             if(panel->click_handler(x_pos, y_pos)) {
                 break;
@@ -122,13 +131,14 @@ static void do_idle_state(float dT) {
             exiting = false;
             tween_timer.reset();
             state = SELECT_STATE;
+            return;
         }
 
         tween_timer.progress_timer(dT);
         float tween = 800.f * in_out_bezier.modify_feature(0.f);
 
-        for(unsigned i = 0; i < ui_panels[IDLE_STATE].size(); i ++) {
-            UI_Panel *panel = &ui_panels[IDLE_STATE][i];
+        for(int i = 0; i < (int)ui_panels[IDLE_STATE].size(); i ++) {
+            UI_Panel *panel = ui_panels[IDLE_STATE][i];
 
             if(i == 1) {            
                 float xAmount = scale1.modify_feature(panel->width);
@@ -155,8 +165,8 @@ static void do_idle_state(float dT) {
             }
         }
 
-        for(unsigned i = 0; i < ui_panels[SELECT_STATE].size(); i ++) {
-            UI_Panel *panel = &ui_panels[SELECT_STATE][i];
+        for(int i = 0; i < (int)ui_panels[SELECT_STATE].size(); i ++) {
+            UI_Panel *panel = ui_panels[SELECT_STATE][i];
 
             if(i == 1) {
                 float original_y = panel->y;
@@ -182,8 +192,8 @@ static void do_idle_state(float dT) {
         }
     }
     else {
-        for(unsigned i = 0; i < ui_panels[IDLE_STATE].size(); i ++) {
-            UI_Panel *panel = &ui_panels[IDLE_STATE][i];
+        for(int i = 0; i < (int)ui_panels[IDLE_STATE].size(); i ++) {
+            UI_Panel *panel = ui_panels[IDLE_STATE][i];
 
             if(i == 1) {            
                 float xAmount = scale1.modify_feature(panel->width);
@@ -223,14 +233,15 @@ static void do_select_state(float dT) {
                 exiting = false;
                 tween_timer.reset();
                 state = CAPTURE_STATE;
+                return;
             }
 
             tween_timer.progress_timer(dT);
 
             float tween = 1280.f * in_out_bezier.modify_feature(0.f);
 
-            for(unsigned i = 0; i < ui_panels[CAPTURE_STATE].size(); i ++) {
-                UI_Panel *panel = &ui_panels[CAPTURE_STATE][i];
+            for(int i = 0; i < (int)ui_panels[CAPTURE_STATE].size(); i ++) {
+                UI_Panel *panel = ui_panels[CAPTURE_STATE][i];
 
                 float original_x = panel->x;
                 
@@ -239,8 +250,8 @@ static void do_select_state(float dT) {
                 panel->x = original_x;
             }
 
-            for(unsigned i = 0; i < ui_panels[SELECT_STATE].size(); i ++) {
-                UI_Panel *panel = &ui_panels[SELECT_STATE][i];
+            for(int i = 0; i < (int)ui_panels[SELECT_STATE].size(); i ++) {
+                UI_Panel *panel = ui_panels[SELECT_STATE][i];
 
                 if(i == 0) {
                     float original_x = panel->x;
@@ -262,8 +273,8 @@ static void do_select_state(float dT) {
             }
         }
         else {
-            for(unsigned i = 0; i < ui_panels[SELECT_STATE].size(); i ++) {
-                UI_Panel *panel = &ui_panels[SELECT_STATE][i];
+            for(int i = 0; i < (int)ui_panels[SELECT_STATE].size(); i ++) {
+                UI_Panel *panel = ui_panels[SELECT_STATE][i];
 
                 if(i == 0) {
                     panel->render();
@@ -292,8 +303,8 @@ static void do_select_state(float dT) {
         }
     }
     else {
-        for(unsigned i = 0; i < ui_panels[SELECT_STATE].size(); i ++) {
-            UI_Panel *panel = &ui_panels[SELECT_STATE][i];
+        for(int i = 0; i < (int)ui_panels[SELECT_STATE].size(); i ++) {
+            UI_Panel *panel = ui_panels[SELECT_STATE][i];
 
             if(i == 1) {
                 float original_y = panel->y;
@@ -316,35 +327,23 @@ static void do_select_state(float dT) {
 
 static void do_capture_state(float dT) {
     for(unsigned i = 0; i < ui_panels[CAPTURE_STATE].size(); i ++) {
-        UI_Panel *panel = &ui_panels[CAPTURE_STATE][i];
+        UI_Panel *panel = ui_panels[CAPTURE_STATE][i];
+
+        if(i == 2) {
+            if(counting) {
+                dial_timer.progress_timer(dT);
+                float frame = (float)((Animated_Panel *)panel)->get_max_frames() * dial_timer.getTimerValue() / dial_timer.getTimerMaximum();
+                ((Animated_Panel *)panel)->set_frame(frame);
+            }
+        }
+        else if(i == 3) {
+            float frame = 5.f - ((float)countdown - 1.f);
+            ((Animated_Panel *)panel)->set_frame(frame);
+        }
 
         panel->render();
     }
 }
-
-/*static void render_panel(ui_panel_t *panel) {
-    glUniform1i(is_textured_unif, panel->textured ? 1 : -1);
-    glBindTexture(GL_TEXTURE_2D, panel->texture);
-
-    float offset[2] = {(float)panel->rect_geom.x / (float)window_dimensions.width(),
-                        (float)panel->rect_geom.y / (float)window_dimensions.height()};
-    float scale[2] = {(float)panel->rect_geom.width / (float)window_dimensions.width(),
-                        (float)panel->rect_geom.height / (float)window_dimensions.height()};
-
-    glUniform3fv(fill_colour_unif, 1, &panel->fill_colour[0]);
-    glUniform2fv(offset_unif, 1, &offset[0]);
-    glUniform2fv(scale_unif, 1, &scale[0]);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, face_buffer);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, NULL);
-
-    if(panel->stroke > 0.f) {
-        glLineWidth(panel->stroke);
-        glUniform3fv(fill_colour_unif, 1, &panel->stroke_colour[0]);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edge_buffer);
-        glDrawElements(GL_LINE_STRIP, 5, GL_UNSIGNED_SHORT, NULL);
-    }
-}*/
 
 static void load_panel_textures() {
     create_texture(&preview_tex);
@@ -367,30 +366,40 @@ static void load_panel_textures() {
 
     create_texture(&capture_background_tex);
     load_texture("../data/capture_background.png");
+
+    create_texture(&timer_tex);
+    load_texture("../data/dial_tileset.png");
+
+    create_texture(&counter_tex);
+    load_texture("../data/countdown_tileset.png");
 }
 
 static void load_interface() {
     load_panel_textures();
 
-    Texture_Panel idle_background_panel = Texture_Panel(blurred_tex, 0.f, -26.f, 1280.f, 853.f, goto_layout_state);
-    Texture_Panel idle_text_panel = Texture_Panel(touch_text_tex, 115.f, 332.f, 1051.f, 136.f);
+    UI_Panel *idle_background_panel = new Texture_Panel(blurred_tex, 0.f, -26.f, 1280.f, 853.f, goto_layout_state);
+    UI_Panel *idle_text_panel = new Texture_Panel(touch_text_tex, 115.f, 332.f, 1051.f, 136.f);
 
     ui_panels[IDLE_STATE].push_back(idle_background_panel);
     ui_panels[IDLE_STATE].push_back(idle_text_panel);
 
-    Texture_Panel select_background_panel = Texture_Panel(select_back_tex, 0.f, 0.f, 1280.f, 800.f, set_red);
-    Texture_Panel select_vertical_panel = Texture_Panel(select_vertical_tex, 216.f, 109.f, 359.f, 606.f, set_green);
-    Texture_Panel select_polaroid_panel = Texture_Panel(select_polaroid_tex, 684.f, 182.f, 399.f, 461.f, set_blue);
+    UI_Panel *select_background_panel = new Texture_Panel(select_back_tex, 0.f, 0.f, 1280.f, 800.f, set_red);
+    UI_Panel *select_vertical_panel = new Texture_Panel(select_vertical_tex, 216.f, 109.f, 359.f, 606.f, set_green);
+    UI_Panel *select_polaroid_panel = new Texture_Panel(select_polaroid_tex, 684.f, 182.f, 399.f, 461.f, set_blue);
 
     ui_panels[SELECT_STATE].push_back(select_background_panel);
     ui_panels[SELECT_STATE].push_back(select_vertical_panel);
     ui_panels[SELECT_STATE].push_back(select_polaroid_panel);
 
-    Texture_Panel capture_background_panel = Texture_Panel(capture_background_tex, 0.f, 0.f, 1280.f, 800.f);
-    Texture_Panel capture_preview_panel = Texture_Panel(preview_tex, 280.f, 100.f, 900.f, 600.f);
+    UI_Panel *capture_background_panel = new Texture_Panel(capture_background_tex, 0.f, 0.f, 1280.f, 800.f);
+    UI_Panel *capture_preview_panel = new Texture_Panel(preview_tex, 320.f, 100.f, 900.f, 600.f);
+    UI_Panel *timer_panel = new Animated_Panel(timer_tex, 10, 10, 30.f, 275.f, 250.f, 250.f);
+    UI_Panel *counter_panel = new Animated_Panel(counter_tex, 5, 1, 30.f, 275.f, 250.f, 250.f);
 
     ui_panels[CAPTURE_STATE].push_back(capture_background_panel);
     ui_panels[CAPTURE_STATE].push_back(capture_preview_panel);
+    ui_panels[CAPTURE_STATE].push_back(timer_panel);
+    ui_panels[CAPTURE_STATE].push_back(counter_panel);
 }
 
 void open_window() {

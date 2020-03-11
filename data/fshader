@@ -6,9 +6,12 @@ uniform int is_textured;
 uniform sampler2D tex_layer;
 uniform vec3 fill_colour;
 
+uniform vec2 uv_offset;
+uniform vec2 uv_scale;
+
 void main() {
 	if(is_textured > -1) {
-		vec4 tex_col = texture2D(tex_layer, tex_out);
+		vec4 tex_col = texture2D(tex_layer, (tex_out + uv_offset) * uv_scale);
 		gl_FragColor = vec4(tex_col.xyz, 1.f - tex_col.w);
 	}
 	else {

@@ -43,8 +43,10 @@ public:
 };
 
 class Texture_Panel : public UI_Panel {
-    GLuint texture_id;
     void (*click_ptr)(void);
+
+protected:
+    GLuint texture_id;
 
 public:
     Texture_Panel();
@@ -52,6 +54,19 @@ public:
 
     virtual void render();
     virtual bool click_handler(float click_x, float click_y);
+};
+
+class Animated_Panel : public Texture_Panel {
+    unsigned frame;
+    unsigned columns, rows;
+
+public:
+    Animated_Panel();
+    Animated_Panel(GLuint texture, unsigned x_tiles, unsigned y_tiles, float panel_x, float panel_y, float panel_width, float panel_height, void (*on_click_ptr)(void) = nullptr);
+
+    virtual void render();
+    void set_frame(unsigned new_frame);
+    unsigned get_max_frames();
 };
 
 class BounceAnimation : public Animation {
