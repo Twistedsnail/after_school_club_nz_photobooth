@@ -46,7 +46,7 @@ int main() {
         //}
     }
 
-    disconnect_camera();
+    //disconnect_camera();
 
     return 0;
 }
