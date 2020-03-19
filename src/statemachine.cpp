@@ -45,16 +45,19 @@ void load_preview(char *data, unsigned long *sze) {
     load_pixels(img.columns(), img.rows(), get_img_pixels(img));
 }
 
-void load_texture(std::string path) {
-    Magick::Image img(path.c_str());
-    load_pixels(img.columns(), img.rows(), get_img_pixels(img));
-}
+void load_blurred_texture(char *data, unsigned long *sze) {
+    Magick::Blob data_blob(data, *sze);
+    Magick::Image img(data_blob);
 
-static void load_blurred_texture(std::string path) {
-    Magick::Image img(path.c_str());
     img.blur(100.0, 100.0);
     img.syncPixels();
 
+    glBindTexture(GL_TEXTURE_2D, blurred_tex);
+    load_pixels(img.columns(), img.rows(), get_img_pixels(img));
+}
+
+static void load_texture(std::string path) {
+    Magick::Image img(path.c_str());
     load_pixels(img.columns(), img.rows(), get_img_pixels(img));
 }
 

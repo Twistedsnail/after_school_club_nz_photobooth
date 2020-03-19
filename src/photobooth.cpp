@@ -2,13 +2,32 @@
 #include "display_manager.h"
 #include "layout.h"
 #include "curl_manager.h"
+#include "statemachine.h"
 
 #include <stdlib.h>
 #include <time.h>
 #include <cstdlib>
+#include <thread>
 
-//static char *preview_blob_data = nullptr;
-//static unsigned long preview_blob_size = 0;
+bool main_ready = true;
+bool preview_taken = false;
+
+static char *preview_blob_data = nullptr;
+static unsigned long preview_blob_size = 0;
+
+void camera_thread() {
+    while (should_run()) {
+        if(state == IDLE_STATE && main_ready && ! preview_taken) {
+            if(take_preview(&preview_blob_data, &preview_blob_size)) {
+                main_ready = false;
+                preview_taken = true;
+            }
+        }
+        else if(state != IDLE_STATE) break;
+    }
+
+    printf("Exited camera thread\n");
+}
 
 int main() {
     Magick::InitializeMagick("");
@@ -16,7 +35,7 @@ int main() {
 
 	//curl_test();
 
-    //connect_to_camera();
+    bool connected = connect_to_camera();
     open_window();
 
     /*Magick::Image layout_template = init_layout(&polaroid_layout_b);
@@ -30,11 +49,14 @@ int main() {
     }
     printf("Layout complete\n");*/
 
+    std::thread cam_thread = std::thread(camera_thread);
+
     while(should_run()) {
-        //take_preview();
-        /*if(take_preview(&preview_blob_data, &preview_blob_size)) {
-            load_preview(preview_blob_data, &preview_blob_size);
-        }*/
+        if(! main_ready && preview_taken) {
+            preview_taken = false;
+            load_blurred_texture(preview_blob_data, &preview_blob_size);
+            main_ready = true;
+        }
         update_window();
         //if(get_triggered()) {
             //if(take_full_image(capture_number++)) {
@@ -46,7 +68,7 @@ int main() {
         //}
     }
 
-    //disconnect_camera();
+    disconnect_camera();
 
     return 0;
 }

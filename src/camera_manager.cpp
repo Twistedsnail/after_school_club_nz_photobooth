@@ -52,7 +52,7 @@ static void log_error(GPLogLevel level, const char *domain, const char *str, voi
     }
 }*/
 
-void connect_to_camera() {
+bool connect_to_camera() {
     context = gp_context_new();
     gp_context_set_error_func(context, context_error, NULL);
     gp_log_add_func(GP_LOG_ERROR, log_error, NULL);
@@ -64,13 +64,15 @@ void connect_to_camera() {
         if(status != GP_OK) printf("Camera connection attempt %i failed\n", attempts + 1);
         else {
             printf("Successful camera connection:\n");
-            break;
+            return true;
         }
     }
 
-    CameraText info_text;
+    /*CameraText info_text;
     gp_camera_get_summary(camera, &info_text, context);
-    printf("%s\n", info_text.text);
+    printf("%s\n", info_text.text);*/
+
+    return false;
 }
 
 void disconnect_camera() {

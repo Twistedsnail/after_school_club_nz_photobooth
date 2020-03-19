@@ -13,3 +13,6 @@ void load_interface();
 void run_state(float dT);
 
 void check_click(float click_x, float click_y);
+
+void load_preview(char *data, unsigned long *sze);
+void load_blurred_texture(char *data, unsigned long *sze);
