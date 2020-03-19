@@ -7,6 +7,8 @@ typedef enum {
     NUMBER_OF_STATES
 } state_t;
 
+state_t state = IDLE_STATE;
+
 void load_interface();
 void run_state(float dT);
 

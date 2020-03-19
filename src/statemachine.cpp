@@ -8,17 +8,18 @@
 
 static GLuint preview_tex, blurred_tex, touch_text_tex, select_back_tex, select_vertical_tex, select_polaroid_tex, capture_background_tex, timer_tex, counter_tex;
 
-static state_t state = IDLE_STATE;
-
 static std::vector<UI_Panel *> ui_panels[NUMBER_OF_STATES];
+static std::vector<AnimationLink> animation_links;
 
 static int selected = 0;
 static unsigned countdown = 5;
 static bool counting = true;
 
 static void decrement_counter() {
-    countdown --;
-    if(countdown == 1) {
+    if(counting) {
+        countdown --;
+    }
+    if(countdown == 0) {
         counting = false;
     }
 }
@@ -85,8 +86,34 @@ static void goto_layout_state() {
     exiting = true;
 }
 
+static void animate() {
+    for(unsigned i = 0; i < animation_links.size(); i++) {
+        animation_links[i].apply_animation();
+    }
+}
+
+static void unanimate() {
+    for(unsigned i = 0; i < animation_links.size(); i++) {
+        animation_links[i].remove_animation();
+    }
+}
+
 static void do_idle_state(float dT) {
     bounce_timer.progress_timer(dT);
+
+    std::vector<float *> width_scale_targs = {&ui_panels[IDLE_STATE][1]->width};
+    std::vector<float *> width_offset_targs = {&ui_panels[IDLE_STATE][1]->x};
+    AnimationLink width_scale_link = AnimationLink((Animation *)&scale1, &ui_panels[IDLE_STATE][1]->width, width_scale_targs);
+    AnimationLink width_offset_link = AnimationLink((Animation *)&scale1, &ui_panels[IDLE_STATE][1]->width, width_offset_targs, -0.5f);
+    animation_links.push_back(width_scale_link);
+    animation_links.push_back(width_offset_link);
+
+    std::vector<float *> height_scale_targs = {&ui_panels[IDLE_STATE][1]->height};
+    std::vector<float *> height_offset_targs = {&ui_panels[IDLE_STATE][1]->y};
+    AnimationLink height_scale_link = AnimationLink((Animation *)&scale1, &ui_panels[IDLE_STATE][1]->height, height_scale_targs);
+    AnimationLink height_offset_link = AnimationLink((Animation *)&scale1, &ui_panels[IDLE_STATE][1]->height, height_offset_targs, -0.5f);
+    animation_links.push_back(height_scale_link);
+    animation_links.push_back(height_offset_link);
 
     if(exiting) {
         if(tween_timer.getTimerValue() == tween_timer.getTimerMaximum()) {
@@ -97,83 +124,33 @@ static void do_idle_state(float dT) {
         }
 
         tween_timer.progress_timer(dT);
-        float tween = 800.f * in_out_bezier.modify_feature(0.f);
 
-        for(int i = 0; i < (int)ui_panels[IDLE_STATE].size(); i ++) {
-            UI_Panel *panel = ui_panels[IDLE_STATE][i];
+        std::vector<float *> tween_targs = {&ui_panels[IDLE_STATE][0]->y, &ui_panels[IDLE_STATE][1]->y};
+        AnimationLink tween_link = AnimationLink(&in_out_bezier, nullptr, tween_targs, -800.f);
+        animation_links.push_back(tween_link);
 
-            if(i == 1) {            
-                float xAmount = scale1.modify_feature(panel->width);
-                float yAmount = scale1.modify_feature(panel->height);
+        std::vector<float *> negative_tween_targs = {&ui_panels[SELECT_STATE][0]->y, &ui_panels[SELECT_STATE][1]->y, &ui_panels[SELECT_STATE][2]->y};
+        AnimationLink negative_tween_link = AnimationLink(&in_out_bezier, nullptr, negative_tween_targs, -800.f, 800.f);
+        animation_links.push_back(negative_tween_link);
 
-                panel->y -= yAmount / 2.f + tween;
-                panel->height += yAmount;
-                panel->x -= xAmount / 2.f;
-                panel->width += xAmount;
+        std::vector<float *> bounce1_targs = {&ui_panels[SELECT_STATE][1]->y};
+        AnimationLink bounce1_link = AnimationLink(&bounce1, &ui_panels[SELECT_STATE][1]->y, bounce1_targs);
+        animation_links.push_back(bounce1_link);
 
-                panel->render();
+        std::vector<float *> bounce2_targs = {&ui_panels[SELECT_STATE][2]->y};
+        AnimationLink bounce2_link = AnimationLink(&bounce2, &ui_panels[SELECT_STATE][2]->y, bounce2_targs);
+        animation_links.push_back(bounce2_link);
+    }
 
-                panel->y += yAmount / 2.f + tween;
-                panel->height -= yAmount;
-                panel->x += xAmount / 2.f;
-                panel->width -= xAmount;
-            }
-            else {
-                float original_y = panel->y;
-                
-                panel->y -= tween;
-                panel->render();
-                panel->y = original_y;
-            }
-        }
-
+    animate();
+    for(int i = 0; i < (int)ui_panels[IDLE_STATE].size(); i ++) {
+        UI_Panel *panel = ui_panels[IDLE_STATE][i];
+        panel->render();
+    }
+    if(exiting) {
         for(int i = 0; i < (int)ui_panels[SELECT_STATE].size(); i ++) {
             UI_Panel *panel = ui_panels[SELECT_STATE][i];
-
-            if(i == 1) {
-                float original_y = panel->y;
-
-                panel->y = bounce1.modify_feature(panel->y) + (800.f - tween);
-                panel->render();
-                panel->y = original_y;
-            }
-            else if(i == 2) {
-                float original_y = panel->y;
-
-                panel->y = bounce2.modify_feature(panel->y) + (800.f - tween);
-                panel->render();
-                panel->y = original_y;
-            }
-            else {
-                float original_y = panel->y;
-                
-                panel->y += (800.f - tween);
-                panel->render();
-                panel->y = original_y;
-            }
-        }
-    }
-    else {
-        for(int i = 0; i < (int)ui_panels[IDLE_STATE].size(); i ++) {
-            UI_Panel *panel = ui_panels[IDLE_STATE][i];
-
-            if(i == 1) {            
-                float xAmount = scale1.modify_feature(panel->width);
-                float yAmount = scale1.modify_feature(panel->height);
-
-                panel->y -= yAmount / 2.f;
-                panel->height += yAmount;
-                panel->x -= xAmount / 2.f;
-                panel->width += xAmount;
-
-                panel->render();
-
-                panel->y += yAmount / 2.f;
-                panel->height -= yAmount;
-                panel->x += xAmount / 2.f;
-                panel->width -= xAmount;
-            }
-            else panel->render();
+            panel->render();
         }
     }
 }
@@ -183,12 +160,24 @@ static void do_select_state(float dT) {
 
     static bool exiting_stage_2 = false;
 
+    std::vector<float *> bounce1_targs = {&ui_panels[SELECT_STATE][1]->y};
+    AnimationLink bounce1_link = AnimationLink(&bounce1, &ui_panels[SELECT_STATE][1]->y, bounce1_targs);
+    animation_links.push_back(bounce1_link);
+
+    std::vector<float *> bounce2_targs = {&ui_panels[SELECT_STATE][2]->y};
+    AnimationLink bounce2_link = AnimationLink(&bounce2, &ui_panels[SELECT_STATE][2]->y, bounce2_targs);
+    animation_links.push_back(bounce2_link);
+
     if(exiting) {
         if(second_tween_timer.getTimerValue() == second_tween_timer.getTimerMaximum()) {
             exiting_stage_2 = true;
         }
 
         second_tween_timer.progress_timer(dT);
+
+        std::vector<float *> drop_targs = {&ui_panels[SELECT_STATE][3 - selected]->y};
+        AnimationLink drop_link = AnimationLink(&out_bezier, nullptr, drop_targs, 800.f);
+        animation_links.push_back(drop_link);
 
         if(exiting_stage_2) {
             if(tween_timer.getTimerValue() == tween_timer.getTimerMaximum()) {
@@ -200,89 +189,25 @@ static void do_select_state(float dT) {
 
             tween_timer.progress_timer(dT);
 
-            float tween = 1280.f * in_out_bezier.modify_feature(0.f);
+            std::vector<float *> tween_targs = {&ui_panels[SELECT_STATE][0]->x, &ui_panels[SELECT_STATE][1]->x, &ui_panels[SELECT_STATE][2]->x};
+            AnimationLink tween_link = AnimationLink(&in_out_bezier, nullptr, tween_targs, -1280.f);
+            animation_links.push_back(tween_link);
 
-            for(int i = 0; i < (int)ui_panels[CAPTURE_STATE].size(); i ++) {
-                UI_Panel *panel = ui_panels[CAPTURE_STATE][i];
-
-                float original_x = panel->x;
-                
-                panel->x += (1280.f - tween);
-                panel->render();
-                panel->x = original_x;
-            }
-
-            for(int i = 0; i < (int)ui_panels[SELECT_STATE].size(); i ++) {
-                UI_Panel *panel = ui_panels[SELECT_STATE][i];
-
-                if(i == 0) {
-                    float original_x = panel->x;
-
-                    panel->x -= tween;
-                    panel->render();
-                    panel->x = original_x;
-                }
-                else if(i == selected) {
-                    float original_y = panel->y;
-                    float original_x = panel->x;
-
-                    panel->y = bounce2.modify_feature(panel->y);
-                    panel->x -= tween;
-                    panel->render();
-                    panel->y = original_y;
-                    panel->x = original_x;
-                }
-            }
-        }
-        else {
-            for(int i = 0; i < (int)ui_panels[SELECT_STATE].size(); i ++) {
-                UI_Panel *panel = ui_panels[SELECT_STATE][i];
-
-                if(i == 0) {
-                    panel->render();
-                }
-                else if(i == selected) {
-                    float original_y = panel->y;
-
-                    if(selected == 1) {
-                        panel->y = bounce1.modify_feature(panel->y);
-                    }
-                    else {
-                        panel->y = bounce2.modify_feature(panel->y);
-                    }
-                    
-                    panel->render();
-                    panel->y = original_y;
-                }
-                else {
-                    float original_y = panel->y;
-
-                    panel->y = bounce2.modify_feature(panel->y) + 800.f * out_bezier.modify_feature(0.f);
-                    panel->render();
-                    panel->y = original_y;
-                }
-            }
+            std::vector<float *> negative_tween_targs = {&ui_panels[CAPTURE_STATE][0]->x, &ui_panels[CAPTURE_STATE][1]->x, &ui_panels[CAPTURE_STATE][2]->x, &ui_panels[CAPTURE_STATE][3]->x};
+            AnimationLink negative_tween_link = AnimationLink(&in_out_bezier, nullptr, negative_tween_targs, -1280.f, 1280.f);
+            animation_links.push_back(negative_tween_link);
         }
     }
-    else {
-        for(int i = 0; i < (int)ui_panels[SELECT_STATE].size(); i ++) {
-            UI_Panel *panel = ui_panels[SELECT_STATE][i];
 
-            if(i == 1) {
-                float original_y = panel->y;
-
-                panel->y = bounce1.modify_feature(panel->y);
-                panel->render();
-                panel->y = original_y;
-            }
-            else if(i == 2) {
-                float original_y = panel->y;
-
-                panel->y = bounce2.modify_feature(panel->y);
-                panel->render();
-                panel->y = original_y;
-            }
-            else panel->render();
+    animate();
+    for(unsigned i = 0; i < ui_panels[SELECT_STATE].size(); i ++) {
+        UI_Panel *panel = ui_panels[SELECT_STATE][i];
+        panel->render();
+    }
+    if(exiting_stage_2) {
+        for(unsigned i = 0; i < ui_panels[CAPTURE_STATE].size(); i ++) {
+            UI_Panel *panel = ui_panels[CAPTURE_STATE][i];
+            panel->render();
         }
     }
 }
@@ -299,11 +224,13 @@ static void do_capture_state(float dT) {
             }
         }
         else if(i == 3) {
-            float frame = 5.f - ((float)countdown - 1.f);
+            float frame = 5.f - ((float)countdown);
             ((Animated_Panel *)panel)->set_frame(frame);
         }
 
-        panel->render();
+        if(!(countdown == 0 && (i == 2 || i == 3))) {
+            panel->render();
+        }
     }
 }
 
@@ -365,6 +292,8 @@ void load_interface() {
 }
 
 void run_state(float dT) {
+    animation_links = std::vector<AnimationLink>();
+
     if(state == IDLE_STATE) {
         do_idle_state(dT);
     }
@@ -374,4 +303,6 @@ void run_state(float dT) {
     else if(state == CAPTURE_STATE) {
         do_capture_state(dT);
     }
+
+    unanimate();
 }

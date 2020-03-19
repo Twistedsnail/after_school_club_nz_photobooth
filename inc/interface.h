@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <GL/glew.h>
+#include <vector>
 
 class Timer {
     float timer_value, timer_maximum;
@@ -104,4 +105,21 @@ public:
     CubicBezierAnimation(Timer *timer, float p0x, float p0y, float p1x, float p1y);
 
     virtual float modify_feature(float feature);
+};
+
+class AnimationLink {
+protected:
+    Animation *linked_animation;
+    float *linked_feature;
+    std::vector<float *> targets;
+    float animation_scale;
+    float animation_offset;
+    float last_value;
+    
+public:
+    AnimationLink();
+    AnimationLink(Animation *animation, float *feature, std::vector<float *> apply_list, float scale = 1.f, float offset = 0.f);
+
+    void apply_animation();
+    void remove_animation();
 };

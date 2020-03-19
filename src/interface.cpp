@@ -187,7 +187,7 @@ BounceAnimation::BounceAnimation(Timer *timer, float anim_scale, float anim_offs
 
 float BounceAnimation::modify_feature(float feature) {
     float amount = abs(scale * sin(OMEGA * frequency * getTimerValue() + offset * OMEGA));
-    return feature - amount;
+    return -amount;
 }
 
 ScaleAnimation::ScaleAnimation() {
@@ -272,5 +272,44 @@ float CubicBezierAnimation::get_t_given_x(float x) {
 float CubicBezierAnimation::modify_feature(float feature) {
     float x = getTimerValue() / getTimerMaximum();
     float t = get_t_given_x(x);
+    
     return get_y_given_t(t);
+}
+
+AnimationLink::AnimationLink() {
+    linked_animation = nullptr;
+    linked_feature = nullptr;
+    animation_scale = 1.f;
+    animation_scale = 0.f;
+    last_value = 0.f;
+}
+
+AnimationLink::AnimationLink(Animation *animation, float *feature, std::vector<float *> apply_list, float scale, float offset) {
+    linked_animation = animation;
+    linked_feature = feature;
+    targets = apply_list;
+    animation_scale = scale;
+    animation_offset = offset;
+    last_value = 0.f;
+}
+
+void AnimationLink::apply_animation() {
+    if(linked_animation == nullptr) return;
+
+    float animation_value;
+    if(linked_feature == nullptr) {
+        animation_value = animation_scale * linked_animation->modify_feature(0.f) + animation_offset;
+    }
+    else animation_value = animation_scale * linked_animation->modify_feature(*linked_feature) + animation_offset;
+    last_value = animation_value;
+
+    for(unsigned i = 0; i < targets.size(); i++) {
+        *targets[i] += animation_value;
+    }
+}
+
+void AnimationLink::remove_animation() {
+    for(unsigned i = 0; i < targets.size(); i++) {
+        *targets[i] -= last_value;
+    }
 }
