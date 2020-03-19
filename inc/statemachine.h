@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Magick++.h>
+
 typedef enum {
     IDLE_STATE,
     SELECT_STATE,
@@ -7,7 +9,7 @@ typedef enum {
     NUMBER_OF_STATES
 } state_t;
 
-state_t state = IDLE_STATE;
+extern state_t state;
 
 void load_interface();
 void run_state(float dT);

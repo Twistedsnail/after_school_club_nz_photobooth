@@ -7,7 +7,7 @@ BDIR = bin
 
 LIBS = -lgphoto2 -lgphoto2_port -lGL -lglfw -lGLEW -lMagick++ -lcurl
 
-CFLAGS = -Wall -I$(IDIR) -I/usr/local/include -I/usr/include
+CFLAGS = -Wall -I$(IDIR) -I/usr/local/include -I/usr/include -pthread
 
 SRC = $(wildcard $(SDIR)/*.cpp)
 OBJ := $(addprefix $(ODIR)/,$(notdir $(SRC:.cpp=.o)))

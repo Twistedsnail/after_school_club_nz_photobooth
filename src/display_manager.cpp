@@ -81,6 +81,7 @@ void update_window() {
     old_t = t;
 
     glfwPollEvents();
+    if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, GLFW_TRUE);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     run_state(dT);

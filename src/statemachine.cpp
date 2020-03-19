@@ -6,6 +6,8 @@
 #include "gl_base.h"
 #include "interface.h"
 
+state_t state = IDLE_STATE;
+
 static GLuint preview_tex, blurred_tex, touch_text_tex, select_back_tex, select_vertical_tex, select_polaroid_tex, capture_background_tex, timer_tex, counter_tex;
 
 static std::vector<UI_Panel *> ui_panels[NUMBER_OF_STATES];
@@ -45,12 +47,10 @@ void load_preview(char *data, unsigned long *sze) {
     load_pixels(img.columns(), img.rows(), get_img_pixels(img));
 }
 
+//void load_blurred_texture(char *data, unsigned long *sze) {
 void load_blurred_texture(char *data, unsigned long *sze) {
     Magick::Blob data_blob(data, *sze);
     Magick::Image img(data_blob);
-
-    img.blur(100.0, 100.0);
-    img.syncPixels();
 
     glBindTexture(GL_TEXTURE_2D, blurred_tex);
     load_pixels(img.columns(), img.rows(), get_img_pixels(img));
@@ -242,7 +242,7 @@ static void load_panel_textures() {
     load_texture("../data/prev.jpg");
 
     create_texture(&blurred_tex);
-    load_blurred_texture("../data/prev.jpg");
+    load_texture("../data/prev.jpg");
 
     create_texture(&touch_text_tex);
     load_texture("../data/touch_text_fixed.png");

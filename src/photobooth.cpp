@@ -17,13 +17,12 @@ static unsigned long preview_blob_size = 0;
 
 void camera_thread() {
     while (should_run()) {
-        if(state == IDLE_STATE && main_ready && ! preview_taken) {
+        if((state == IDLE_STATE || state == CAPTURE_STATE) && main_ready && ! preview_taken) {
             if(take_preview(&preview_blob_data, &preview_blob_size)) {
                 main_ready = false;
                 preview_taken = true;
             }
         }
-        else if(state != IDLE_STATE) break;
     }
 
     printf("Exited camera thread\n");
@@ -35,7 +34,7 @@ int main() {
 
 	//curl_test();
 
-    bool connected = connect_to_camera();
+    if(!connect_to_camera()) return 0;
     open_window();
 
     /*Magick::Image layout_template = init_layout(&polaroid_layout_b);
@@ -54,7 +53,12 @@ int main() {
     while(should_run()) {
         if(! main_ready && preview_taken) {
             preview_taken = false;
-            load_blurred_texture(preview_blob_data, &preview_blob_size);
+            if(state == IDLE_STATE) {
+                load_blurred_texture(preview_blob_data, &preview_blob_size);
+            }
+            else if(state == CAPTURE_STATE) {
+                load_preview(preview_blob_data, &preview_blob_size);
+            }
             main_ready = true;
         }
         update_window();
